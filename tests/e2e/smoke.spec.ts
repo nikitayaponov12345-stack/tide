@@ -34,7 +34,11 @@ test('игра запускается и рисует сцену', async ({ page
   const calls = await page.evaluate(() => window.__game!.platformLog().map((c) => c.name));
   expect(calls).toContain('loadingFinished');
 
+  // Сборка `npm run check` идёт без метки публикации.
+  expect(await page.evaluate(() => window.__game!.build)).toBe('dev');
+
   await page.screenshot({ path: `build/shots/m0-01_${info.project.name}.png` });
+  await page.screenshot({ path: `build/shots/m0-04_${info.project.name}.png` });
   expect(errors).toEqual([]);
 });
 

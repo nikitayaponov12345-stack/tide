@@ -8,6 +8,7 @@
 - `npm install` — один раз после клонирования (нужны Node.js 22.12+ и npm 11+), затем `npx playwright install chromium`.
 - `npm run dev` — игра в браузере с перезагрузкой при правках.
 - `npm run check` — проверка таблиц, тесты, сборка с отчётом о размере и смоук в двух раскладках.
+- `npm run publish` — опубликовать сборку для телефона: https://nikitayaponov12345-stack.github.io/tide-play/
 
 ## Документы
 - `docs/GDD.md` — правила и числа игры.

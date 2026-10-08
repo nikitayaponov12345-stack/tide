@@ -26,10 +26,12 @@ export interface ViewOptions {
 
 /**
  * Рабочая отрисовка: вода, плот, моряк, круг дальности, предметы, сеть с верёвкой и значки опыта.
- * Мир рисуется со сдвигом на центр поля дизайна; только читает состояние ядра.
+ * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
 export class View {
   private readonly sea = new Graphics();
+  /** Маска мира: поле дизайна — полосы за краем поля остаются пустыми. */
+  private readonly field = new Graphics();
   private readonly world = new Container();
   private readonly raft = new Graphics();
   private readonly range = new Graphics();
@@ -46,12 +48,14 @@ export class View {
   ) {
     this.counter.anchor.set(0.5, 1);
     this.world.addChild(this.range, this.raft, this.items, this.net, this.aim, this.counter, this.icons);
-    root.addChild(this.sea, this.world);
+    this.world.mask = this.field;
+    root.addChild(this.sea, this.field, this.world);
   }
 
   build(layout: Layout): void {
     const { w, h } = DESIGN[layout];
     this.sea.clear().rect(0, 0, w, h).fill(this.opts.waterColor);
+    this.field.clear().rect(0, 0, w, h).fill(0xffffff);
     this.world.position.set(w / 2, h / 2);
     this.iconTargetY = -h / 2 + XP_BAR.top + XP_BAR.height / 2;
     const cell = this.opts.cellPx;

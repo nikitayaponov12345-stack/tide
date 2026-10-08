@@ -12,6 +12,8 @@ import type { PlatformCall } from './platform/platform';
 export interface GameDebug {
   ready: boolean;
   version: string;
+  /** Метка сборки: хеш коммита (с '+' при незакоммиченных правках) или 'dev'. */
+  build: string;
   layout(): Layout;
   world(): {
     timeMs: number;

@@ -15,6 +15,8 @@ import { Overlay } from './ui/overlay';
 import { SummaryWindow } from './ui/summary';
 
 const VERSION = '0.0.2';
+/** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
+const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
 const SEED = 1;
 /** Отладочные клавиши уровня: не выше этого. */
@@ -92,7 +94,7 @@ async function boot(): Promise<void> {
     hud.update(game, stage.layout);
     overlay.update(
       performance.now(),
-      `Прилив ${VERSION} · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · схема ${control.scheme.id} · уровень ${progression.level}` +
+      `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · схема ${control.scheme.id} · уровень ${progression.level}` +
         ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}` +
         ` · проба ${Math.ceil(control.trialLeftMs / 1000)} с`,
     );
@@ -101,6 +103,7 @@ async function boot(): Promise<void> {
   window.__game = {
     ready: true,
     version: VERSION,
+    build: BUILD,
     layout: () => stage.layout,
     world: () => {
       const byRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
