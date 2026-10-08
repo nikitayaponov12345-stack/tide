@@ -1,16 +1,18 @@
 import './debug';
-import { FixedStep } from './core/clock';
 import { ROLES, type Role } from './core/data/tables';
 import { Game } from './core/game';
+import { summarize } from './core/stats';
 import { DATA } from './data';
-import { SchemeA } from './game/input/schemes';
+import { Control, schemeFromSearch } from './game/input/control';
 import { PointerInput } from './game/input/pointer';
+import { SchemeD, nextScheme, type SchemeId } from './game/input/schemes';
 import { DESIGN, worldToScreen, type Layout } from './game/layout';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
+import { SummaryWindow } from './ui/summary';
 
 const VERSION = '0.0.2';
 const LOCATION = 'lagoon';
@@ -42,9 +44,6 @@ async function boot(): Promise<void> {
     view.build(layout);
   };
 
-  const scheme = new SchemeA();
-  new PointerInput(stage.app.canvas, game, () => scheme, () => stage.layout);
-
   const setLevel = (n: number): void => game.setLevel(Math.max(1, Math.round(n)));
   const debug = import.meta.env.DEV || new URLSearchParams(location.search).get('debug') === '1';
   if (debug) {
@@ -55,18 +54,47 @@ async function boot(): Promise<void> {
     });
   }
 
+  const text = (key: string): string => DATA.text(key, lang);
+  const schemeName = (id: SchemeId): string => text(`ui.scheme.${id}`);
+  const schemeLabel = (id: SchemeId): string => `${text('ui.scheme')}: ${schemeName(id)}`;
+
   const ui = document.getElementById('ui')!;
-  const overlay = new Overlay(ui);
-  const hud = new Hud(ui, (key) => DATA.text(key, lang));
-  const clock = new FixedStep();
+  const hud = new Hud(ui, text);
+  // Обработчики ниже вызываются только после создания control и input.
+  const overlay = new Overlay(ui, { onScheme: () => control.next(), onSummary: () => control.openSummary() });
+  const summaryWindow = new SummaryWindow(ui, text, lang);
+  const control: Control = new Control(game, DATA, platform, {
+    scheme: (s) => {
+      input.setScheme(s);
+      overlay.setSchemeLabel(schemeLabel(s.id));
+    },
+    summary: (sum) => {
+      input.enabled = sum === null;
+      if (sum === null) {
+        summaryWindow.hide();
+        return;
+      }
+      const id = control.scheme.id;
+      summaryWindow.show(sum, {
+        scheme: schemeLabel(id),
+        nextLabel: schemeName(nextScheme(id)),
+        onAgain: () => control.restart(),
+        onNext: () => control.next(),
+      });
+    },
+  }, schemeFromSearch(location.search));
+  const input = new PointerInput(stage.app.canvas, game, control.scheme, () => stage.layout);
+  overlay.setSchemeLabel(schemeLabel(control.scheme.id));
+
   stage.app.ticker.add((ticker) => {
-    clock.advance(ticker.deltaMS, (dt) => game.step(dt));
-    view.sync(game);
+    control.frame(ticker.deltaMS);
+    view.sync(game, control.scheme instanceof SchemeD ? control.scheme.aim() : null);
     hud.update(game, stage.layout);
     overlay.update(
       performance.now(),
-      `Прилив ${VERSION} · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
-        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}`,
+      `Прилив ${VERSION} · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · схема ${control.scheme.id} · уровень ${progression.level}` +
+        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}` +
+        ` · проба ${Math.ceil(control.trialLeftMs / 1000)} с`,
     );
   });
 
@@ -97,7 +125,12 @@ async function boot(): Promise<void> {
         capacity: net.netParams.capacity, range: net.netParams.range,
       },
       stats: { ...stats },
+      scheme: control.scheme.id,
+      trialMs: control.trialLeftMs,
     }),
+    setScheme: (id) => control.restart(id),
+    summary: () => summarize(stats),
+    openSummary: () => control.openSummary(),
     command: {
       throwTo: (x, y, autoPullAfterMs = null) => game.throwTo(x, y, { autoPullAfterMs }),
       setPull: (on, mult) => game.setPull(on, mult),
@@ -108,7 +141,7 @@ async function boot(): Promise<void> {
     platformLog: () => platform.log.slice(),
   };
   platform.loadingFinished();
-  window.addEventListener('pointerdown', () => platform.gameplayStart(), { once: true });
+  window.addEventListener('pointerdown', () => control.notePlay());
 }
 
 boot().catch((err: unknown) => {

@@ -197,6 +197,12 @@ export class Net {
 
   private finish(): CaughtItem[] {
     const out = this.caught.slice();
+    this.reset();
+    return out;
+  }
+
+  /** Сеть у моряка: ready в (0, 0), улов пуст, удержание, тяга «сама» и запомненные просьбы сброшены. */
+  reset(): void {
     this.caught.length = 0;
     this.state = 'ready';
     this.x = 0;
@@ -207,7 +213,6 @@ export class Net {
     this.pendingFollow = undefined;
     this.autoPullAfterMs = null;
     this.sinceLandMs = 0;
-    return out;
   }
 
   private clampToRange(x: number, y: number): Point {

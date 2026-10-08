@@ -68,3 +68,48 @@ describe('Game', () => {
     expect(levelAt60s).toBeGreaterThanOrEqual(2);
   });
 });
+
+/** Шаги, пока сеть летит. */
+function land(g: Game): void {
+  while (g.net.state === 'flying') g.step(STEP_MS);
+}
+
+describe('Game.resetTrial', () => {
+  it('посреди пробы на 3-м уровне: всё с начала, поле засеяно по 1 уровню', () => {
+    const g = new Game(DATA, CFG);
+    const seededAtStart = g.world.seeded;
+    g.setLevel(3);
+    const target = nearest(g)!;
+    g.throwTo(target.x, target.y, NO_AUTO);
+    land(g);
+    g.setPull(true);
+    while (g.net.state !== 'ready') g.step(STEP_MS);
+    // второй бросок — сразу, пока значки первого летят: сеть в воде с уловом
+    const next = nearest(g)!;
+    g.throwTo(next.x, next.y, NO_AUTO);
+    land(g);
+    g.setPull(true);
+    g.noteTap();
+    expect(g.net.state).not.toBe('ready');
+    expect(g.net.caught.length).toBeGreaterThan(0);
+    expect(g.progression.icons.length).toBeGreaterThan(0);
+    expect(g.progression.level).toBe(3);
+
+    g.resetTrial();
+    expect(g.progression.level).toBe(1);
+    expect(g.progression.xp).toBe(0);
+    expect(g.progression.icons).toEqual([]);
+    expect(g.progression.levelUps).toEqual([]);
+    expect(g.world.level).toBe(1);
+    expect(g.world.seeded).toBe(seededAtStart);
+    expect(g.world.items.length).toBe(seededAtStart);
+    expect(g.world.spawned).toBe(0);
+    expect(g.net.state).toBe('ready');
+    expect([g.net.x, g.net.y, g.net.caught.length]).toEqual([0, 0, 0]);
+    expect({ ...g.stats }).toEqual({ throws: 0, emptyThrows: 0, itemsCaught: 0, xpGained: 0, taps: 0, gameMs: 0 });
+    // удержание сброшено: новый бросок ложится, а не тянется
+    g.throwTo(100, 0, NO_AUTO);
+    land(g);
+    expect(g.net.state).toBe('lying');
+  });
+});

@@ -60,6 +60,18 @@ export class Game {
     this.stats.taps++;
   }
 
+  /**
+   * Новая проба схемы управления. Порядок важен: уровень мира — до засева, иначе поле засеется по старому уровню.
+   * Rng не пересоздаётся: каждая проба начинается с нового поля.
+   */
+  resetTrial(): void {
+    this.progression.reset();
+    this.world.setLevel(1);
+    this.world.reset();
+    this.net.reset();
+    this.stats.reset();
+  }
+
   /** Отладка: уровень прогрессии и потока. */
   setLevel(level: number): void {
     this.progression.setLevel(level);

@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Role } from '../core/data/tables';
 import type { Game } from '../core/game';
+import type { Aim } from './input/schemes';
 import { DESIGN, XP_BAR, type Layout } from './layout';
 
 /** Цвета предметов по роли — константы отрисовки до этапа арта, не баланс. */
@@ -15,6 +16,8 @@ const ROLE_COLOR: Record<Role, number> = {
   bottle: 0xa8dadc,
 };
 const COUNTER_COLOR = { ok: 0x7bd88f, half: 0xffd166, full: 0xff6b6b };
+/** Пунктир полёта «Рогатки»: штрих и промежуток, точки дизайна. */
+const DASH = { on: 10, off: 8 };
 
 export interface ViewOptions {
   waterColor: string; // цвет воды локации
@@ -33,6 +36,7 @@ export class View {
   private readonly items = new Graphics();
   private readonly net = new Graphics();
   private readonly icons = new Graphics();
+  private readonly aim = new Graphics();
   private readonly counter = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: '700', stroke: { color: 0x000000, width: 3 } } });
   private iconTargetY = 0;
 
@@ -41,7 +45,7 @@ export class View {
     private readonly opts: ViewOptions,
   ) {
     this.counter.anchor.set(0.5, 1);
-    this.world.addChild(this.range, this.raft, this.items, this.net, this.counter, this.icons);
+    this.world.addChild(this.range, this.raft, this.items, this.net, this.aim, this.counter, this.icons);
     root.addChild(this.sea, this.world);
   }
 
@@ -59,9 +63,11 @@ export class View {
       .fill(0x264653);
   }
 
-  sync(game: Game): void {
+  /** aim — натяжение «Рогатки» (null — нет натяжения). */
+  sync(game: Game, aim: Aim | null = null): void {
     const { net, world, progression } = game;
     const p = net.netParams;
+    this.drawAim(aim, p.range);
 
     this.range.clear();
     if (net.state === 'ready') this.range.circle(0, 0, p.range).stroke({ width: 1.5, color: 0xffffff, alpha: 0.35 });
@@ -92,5 +98,23 @@ export class View {
       const t = Math.min(1, (now - icon.launchMs) / (icon.arriveMs - icon.launchMs));
       this.icons.circle(icon.fromX * (1 - t), icon.fromY + (this.iconTargetY - icon.fromY) * t, 6).fill(0x9be564).stroke({ width: 1, color: 0x1d3b1d });
     }
+  }
+
+  /** Линия от плота к пальцу и пунктир полёта до точки броска, обрезанный по дальности. */
+  private drawAim(aim: Aim | null, range: number): void {
+    this.aim.clear();
+    if (!aim) return;
+    this.aim.moveTo(0, 0).lineTo(aim.x, aim.y).stroke({ width: 3, color: 0xffd166, alpha: 0.9 });
+    if (!aim.target) return;
+    const d = Math.hypot(aim.target.x, aim.target.y);
+    if (d <= 0) return;
+    const len = Math.min(d, range);
+    const ux = aim.target.x / d;
+    const uy = aim.target.y / d;
+    for (let s = 0; s < len; s += DASH.on + DASH.off) {
+      const e = Math.min(len, s + DASH.on);
+      this.aim.moveTo(ux * s, uy * s).lineTo(ux * e, uy * e);
+    }
+    this.aim.stroke({ width: 2, color: 0xffffff, alpha: 0.8 }).circle(ux * len, uy * len, 6).stroke({ width: 2, color: 0xffffff });
   }
 }

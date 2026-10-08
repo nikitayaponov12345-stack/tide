@@ -66,4 +66,10 @@ export class Progression {
     this.xp = 0;
     this.icons.length = 0;
   }
+
+  /** Новая проба: уровень 1, опыт 0, значки и levelUps сброшены. */
+  reset(): void {
+    this.setLevel(1);
+    this.levelUps.length = 0;
+  }
 }
