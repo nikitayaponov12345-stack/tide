@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DESIGN, fitDesign, layoutFor } from '../../src/game/layout';
+import { DESIGN, fitDesign, layoutFor, screenToWorld, worldToScreen } from '../../src/game/layout';
 
 describe('раскладка', () => {
   it('выбирается по соотношению сторон окна', () => {
@@ -22,6 +22,22 @@ describe('раскладка', () => {
       expect(d.h * f.scale).toBeLessThanOrEqual(h + 1e-6);
       expect(f.x).toBeCloseTo((w - d.w * f.scale) / 2);
       expect(f.y).toBeCloseTo((h - d.h * f.scale) / 2);
+    }
+  });
+
+  it('экран → мир — обратное мир → экран; центр поля — (0, 0)', () => {
+    for (const [w, h] of [
+      [1366, 768],
+      [412, 915],
+    ] as const) {
+      const layout = layoutFor(w, h);
+      const s = worldToScreen(123, -45, w, h, layout);
+      const back = screenToWorld(s.x, s.y, w, h, layout);
+      expect(back.x).toBeCloseTo(123, 9);
+      expect(back.y).toBeCloseTo(-45, 9);
+      const c = screenToWorld(w / 2, h / 2, w, h, layout);
+      expect(c.x).toBeCloseTo(0, 9);
+      expect(c.y).toBeCloseTo(0, 9);
     }
   });
 });

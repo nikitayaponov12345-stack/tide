@@ -1,17 +1,20 @@
 import './debug';
 import { FixedStep } from './core/clock';
 import { ROLES, type Role } from './core/data/tables';
-import { Rng } from './core/rng';
-import { World } from './core/world';
+import { Game } from './core/game';
 import { DATA } from './data';
-import { DESIGN, fitDesign, type Layout } from './game/layout';
+import { SchemeA } from './game/input/schemes';
+import { PointerInput } from './game/input/pointer';
+import { DESIGN, worldToScreen, type Layout } from './game/layout';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
+import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
 
 const VERSION = '0.0.2';
 const LOCATION = 'lagoon';
+const SEED = 1;
 /** Отладочные клавиши уровня: не выше этого. */
 const DEBUG_MAX_LEVEL = 50;
 
@@ -24,11 +27,13 @@ function worldSize(layout: Layout): { halfW: number; halfH: number; speedMult: n
 async function boot(): Promise<void> {
   const platform = new StubPlatform();
   await platform.init();
+  const lang = platform.language() === 'ru' ? 'ru' : 'en';
 
   const stage = new Stage();
   await stage.init(document.getElementById('game')!);
 
-  const world = new World({ ...worldSize(stage.layout), locationId: LOCATION, level: 1 }, DATA, new Rng(1));
+  const game = new Game(DATA, { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED });
+  const { world, net, progression, stats } = game;
   const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx: DATA.num('cell_px') });
   view.build(stage.layout);
   stage.onLayout = (layout) => {
@@ -37,24 +42,31 @@ async function boot(): Promise<void> {
     view.build(layout);
   };
 
-  const setLevel = (n: number): void => world.setLevel(Math.max(1, Math.round(n)));
+  const scheme = new SchemeA();
+  new PointerInput(stage.app.canvas, game, () => scheme, () => stage.layout);
+
+  const setLevel = (n: number): void => game.setLevel(Math.max(1, Math.round(n)));
   const debug = import.meta.env.DEV || new URLSearchParams(location.search).get('debug') === '1';
   if (debug) {
     // По e.code: в русской раскладке e.key у этих клавиш — «ъ» и «х».
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'BracketRight') setLevel(Math.min(DEBUG_MAX_LEVEL, world.level + 1));
-      else if (e.code === 'BracketLeft') setLevel(world.level - 1);
+      if (e.code === 'BracketRight') setLevel(Math.min(DEBUG_MAX_LEVEL, progression.level + 1));
+      else if (e.code === 'BracketLeft') setLevel(progression.level - 1);
     });
   }
 
-  const overlay = new Overlay(document.getElementById('ui')!);
+  const ui = document.getElementById('ui')!;
+  const overlay = new Overlay(ui);
+  const hud = new Hud(ui, (key) => DATA.text(key, lang));
   const clock = new FixedStep();
   stage.app.ticker.add((ticker) => {
-    clock.advance(ticker.deltaMS, (dt) => world.step(dt));
-    view.sync(world);
+    clock.advance(ticker.deltaMS, (dt) => game.step(dt));
+    view.sync(game);
+    hud.update(game, stage.layout);
     overlay.update(
       performance.now(),
-      `Прилив ${VERSION} · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${world.level} · предметов ${world.items.length}`,
+      `Прилив ${VERSION} · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
+        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}`,
     );
   });
 
@@ -76,12 +88,23 @@ async function boot(): Promise<void> {
       };
     },
     setLevel,
-    items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
-    toScreen: (x, y) => {
-      const d = DESIGN[stage.layout];
-      const f = fitDesign(window.innerWidth, window.innerHeight, stage.layout);
-      return { x: f.x + (x + d.w / 2) * f.scale, y: f.y + (y + d.h / 2) * f.scale };
+    state: () => ({
+      level: progression.level,
+      xp: progression.xp,
+      xpToNext: progression.xpToNext(),
+      net: {
+        state: net.state, x: net.x, y: net.y, caught: net.caught.length,
+        capacity: net.netParams.capacity, range: net.netParams.range,
+      },
+      stats: { ...stats },
+    }),
+    command: {
+      throwTo: (x, y, autoPullAfterMs = null) => game.throwTo(x, y, { autoPullAfterMs }),
+      setPull: (on, mult) => game.setPull(on, mult),
+      setFollow: (p) => game.setFollow(p),
     },
+    items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
+    toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),
     platformLog: () => platform.log.slice(),
   };
   platform.loadingFinished();

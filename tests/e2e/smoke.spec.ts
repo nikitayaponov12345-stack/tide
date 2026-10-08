@@ -37,3 +37,42 @@ test('игра запускается и рисует сцену', async ({ page
   await page.screenshot({ path: `build/shots/m0-01_${info.project.name}.png` });
   expect(errors).toEqual([]);
 });
+
+// Схема А мышью: щелчок по предмету бросает сеть, удержание тянет её к плоту, улов даёт опыт.
+test('сеть ловит и даёт опыт', async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
+
+  let gotXp = false;
+  let shot = false;
+  for (let attempt = 0; attempt < 4 && !gotXp; attempt++) {
+    const target = await page.evaluate(() => {
+      const g = window.__game!;
+      const range = g.state().net.range;
+      const items = g.items().sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+      const it = items.find((i) => Math.hypot(i.x, i.y) <= range) ?? items[0]!;
+      return g.toScreen(it.x, it.y);
+    });
+    await page.mouse.click(target.x, target.y);
+    const afterClick = await page.evaluate(() => window.__game!.state().net.state);
+    expect(afterClick).not.toBe('ready');
+    if (!shot) {
+      await page.screenshot({ path: `build/shots/m0-02_${info.project.name}.png` });
+      shot = true;
+    }
+    await page.mouse.down();
+    await page.waitForFunction(() => window.__game!.state().net.state === 'ready', null, { timeout: 8_000 });
+    await page.mouse.up();
+    await page.waitForTimeout(1500);
+    const s = await page.evaluate(() => window.__game!.state());
+    gotXp = s.xp > 0 || s.level > 1;
+  }
+  expect(gotXp).toBe(true);
+  expect(errors).toEqual([]);
+});
