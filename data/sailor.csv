@@ -1,0 +1,5 @@
+tier,net_radius,net_capacity,throw_range,pull,spear_damage,spear_count,weapon_key
+1,24,5,180,420,1,1,weapon.spear
+2,28,7,200,480,1,2,weapon.double_spear
+3,32,9,220,540,2,2,weapon.harpoon
+4,36,11,240,600,2,3,weapon.triple_harpoon

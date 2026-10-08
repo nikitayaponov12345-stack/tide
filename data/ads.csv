@@ -1,0 +1,7 @@
+place,kind,reward,first_after_s,cooldown_s,visible_s,note
+boost_offer,rewarded,boost,150,120,8,Не в событие и не в бой с боссом
+whirlpool_unlock,rewarded,unlock_whirlpool,,,,Один раз на всю кампанию; если реклама за награду недоступна — воронка открывается бесплатно
+refresh_cards,rewarded,refresh_cards,,,,"Раз за окно, после refresh_after_cards взятых карточек"
+double_chest,rewarded,double_big_chest,,,,Окно «Локация пройдена»
+window_close,interstitial,,180,180,,"Закрытие окна выбора; не чаще раза в 3 мин, считая рекламу за награду"
+map_between_locations,interstitial,,180,180,,Карта моря между локациями

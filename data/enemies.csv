@@ -1,0 +1,5 @@
+id,location,name_key,behavior,speed,damage,attacks,telegraph_s,surfaced_s,stun_s,loot_item
+crab,lagoon,enemy.crab,walk_underwater,40,25,1,,,,claw
+shark,reef,enemy.shark,circle_then_bite,70,20,2,2,,,shark_tooth
+orca,north,enemy.orca,strike_from_below_2x2,,30,1,1.5,2.5,,orca_fang
+ray,strait,enemy.ray,stun_building,50,15,1,,,6,ray_barb

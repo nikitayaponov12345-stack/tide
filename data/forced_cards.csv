@@ -1,0 +1,11 @@
+location,trigger,card
+lagoon,level:2,raft
+lagoon,level:4,net_tower
+lagoon,after:boss_visit,spear_tower
+lagoon,level:6,whirlpool
+reef,level:2,raft
+reef,level:3,autorepair
+north,level:2,raft
+north,level:3,crane
+strait,level:2,raft
+strait,level:3,lighthouse

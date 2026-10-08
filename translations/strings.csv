@@ -1,0 +1,127 @@
+key,ru,en
+b.autorepair.1,Автопочинка,Auto-Repair
+b.autorepair.2,Автопочинка 2,Auto-Repair 2
+b.autorepair.3,Автопочинка 3,Auto-Repair 3
+b.crane.1,Кран,Crane
+b.crane.2,Кран 2,Crane 2
+b.lighthouse.1,Маяк,Lighthouse
+b.net_tower.1,Сетевая башня,Net Tower
+b.net_tower.2,Двойная сетевая башня,Double Net Tower
+b.net_tower.3,"Сетевая башня, скорая",Swift Net Tower
+b.net_tower.4,Невод,Seine Tower
+b.spear_tower.1,Копейная башня,Spear Tower
+b.spear_tower.2,Арбалет,Crossbow
+b.spear_tower.3,Гарпунная пушка,Harpoon Gun
+b.spear_tower.4,Гарпунная батарея,Harpoon Battery
+b.whirlpool.1,Воронка,Whirlpool
+b.whirlpool.2,Воронка 2,Whirlpool 2
+b.whirlpool.3,Воронка 3,Whirlpool 3
+b.whirlpool.4,Воронка 4,Whirlpool 4
+boss.ghost_ship,Корабль-призрак,Ghost Ship
+boss.octopus,Гигантский осьминог,Giant Octopus
+boss.schooner,Пиратская шхуна,Pirate Schooner
+boss.white_whale,Белый кит,White Whale
+card.autorepair,Автопочинка,Auto-Repair
+card.autorepair.desc,Сама чинит клетки своего сектора,Repairs tiles in its sector
+card.autorepair_faster,Автопочинка быстрее,Faster Auto-Repair
+card.autorepair_faster.desc,Починка +50 %,Repair +50%
+card.autorepair_sector,Автопочинка: шире сектор,Auto-Repair: Wider Sector
+card.autorepair_sector.desc,Квадрат 3×3 → 5×5,Square 3×3 → 5×5
+card.crane,Кран,Crane
+card.crane.desc,Поднимает тяжёлое прямо на плот,Lifts heavy loot straight aboard
+card.crane_faster,Кран чаще,Faster Cranes
+card.crane_faster.desc,Пауза −20 %,Pause −20%
+card.lighthouse,Маяк,Lighthouse
+card.lighthouse.desc,Тормозит течение и сносит улов к плоту,"Slows the current, drifts loot to the raft"
+card.lighthouse_wider,Маяк шире,Wider Lighthouses
+card.lighthouse_wider.desc,Радиус +25 %,Radius +25%
+card.net_bigger,Сеть вместительнее,Bigger Net
+card.net_bigger.desc,+3 предмета в сеть,+3 items per net
+card.net_tower,Сетевая башня,Net Tower
+card.net_tower.desc,Сама ловит предметы рядом с плотом,Catches nearby items by itself
+card.net_tower_faster,Сетевая башня быстрее,Faster Net Towers
+card.net_tower_faster.desc,Пауза −20 %,Pause −20%
+card.net_wider,Сеть шире,Wider Net
+card.net_wider.desc,Радиус сети +6,Net radius +6
+card.pull_stronger,Тяга сильнее,Stronger Pull
+card.pull_stronger.desc,Тяга +25 %,Pull +25%
+card.raft,Плот,Raft
+card.raft.desc,+1 клетка плота,+1 raft tile
+card.sailor_stash,Запас моряка,Sailor’s Stash
+card.sailor_stash.desc,+20 % опыта до следующего уровня,+20% XP towards the next level
+card.spear_stronger,Копьё сильнее,Stronger Spear
+card.spear_stronger.desc,Урон копья +1,Spear damage +1
+card.spear_tower,Копейная башня,Spear Tower
+card.spear_tower.desc,Сама бьёт врагов и босса,Strikes enemies and the boss
+card.spear_tower_stronger,Копейная башня сильнее,Stronger Spear Towers
+card.spear_tower_stronger.desc,Урон +1,Damage +1
+card.throw_farther,Бросок дальше,Longer Throw
+card.throw_farther.desc,Дальность +40,Range +40
+card.whirlpool,Воронка,Whirlpool
+card.whirlpool.desc,"Втягивает всё, что плывёт рядом",Pulls in everything floating nearby
+card.whirlpool_wider,Воронка шире,Wider Whirlpools
+card.whirlpool_wider.desc,Радиус +20 %,Radius +20%
+enemy.crab,Краб,Crab
+enemy.orca,Касатка,Orca
+enemy.ray,Электрический скат,Electric Ray
+enemy.shark,Акула,Shark
+event.blizzard,Пурга,Blizzard
+event.shark_hour,Акулий час,Shark Hour
+event.squall,Шквал,Squall
+event.storm,Шторм,Storm
+item.ambergris,Амбра,Ambergris
+item.amphora,Амфора,Amphora
+item.blubber_keg,Бочонок ворвани,Blubber Keg
+item.bottle,Бутылка с запиской,Message in a Bottle
+item.branch,Ветка,Branch
+item.claw,Клешня,Claw
+item.coconut,Кокос,Coconut
+item.compass,Компас,Compass
+item.coral,Коралл,Coral
+item.frozen_fish,Мёрзлая рыба,Frozen Fish
+item.ghost_chest,Призрачный сундук,Ghost Chest
+item.gold_chest,Сундук с золотом,Gold Chest
+item.ice_chunk,Льдинка,Ice Chunk
+item.keg,Бочонок,Keg
+item.lantern,Фонарь,Lantern
+item.mast_splinter,Щепа мачты,Mast Splinter
+item.octopus_pearl,Жемчуг осьминога,Octopus Pearl
+item.orca_fang,Клык касатки,Orca Fang
+item.pearl_oyster,Жемчужница,Pearl Oyster
+item.pirate_chest,Пиратский сундук,Pirate Chest
+item.polar_crate,Ящик полярников,Polar Crate
+item.powder_keg,Бочка пороха,Powder Keg
+item.ray_barb,Шип ската,Ray Barb
+item.rope,Моток каната,Rope Coil
+item.shark_tooth,Акулий зуб,Shark Tooth
+item.shell,Ракушка,Shell
+item.small_chest,Сундучок,Small Chest
+item.sunken_casket,Затонувший ларец,Sunken Casket
+item.walrus_tusk,Моржовый клык,Walrus Tusk
+loc.lagoon,Лагуна,Lagoon
+loc.north,Северные воды,Northern Waters
+loc.reef,Риф,Reef
+loc.strait,Штормовой пролив,Storm Strait
+ui.choose_card,Выбери улучшение,Choose an upgrade
+ui.level,Уровень,Level
+ui.new_level,Новый уровень!,Level up!
+ui.pause,Пауза,Pause
+ui.place,Поставить,Place
+ui.resume,Продолжить,Resume
+ui.scheme,Схема,Scheme
+ui.scheme.a,А — классика,A — classic
+ui.scheme.b,Б — автотяга,B — auto-pull
+ui.scheme.c,В — трал,C — trawl
+ui.scheme.d,Г — рогатка,D — slingshot
+ui.summary,Итоги пробы,Test summary
+ui.summary.again,Ещё раз,Again
+ui.summary.empty,Пустых бросков,Empty throws
+ui.summary.items,Предметов на бросок,Items per throw
+ui.summary.taps,Нажатий в минуту,Taps per minute
+ui.summary.throws,Бросков в минуту,Throws per minute
+ui.summary.xp,Опыта в минуту,XP per minute
+ui.take,Взять,Take
+weapon.double_spear,Двойное копьё,Double Spear
+weapon.harpoon,Гарпун,Harpoon
+weapon.spear,Копьё,Spear
+weapon.triple_harpoon,Тройной гарпун,Triple Harpoon

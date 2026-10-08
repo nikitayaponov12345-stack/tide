@@ -8,11 +8,12 @@
   },
   "scripts": {
     "dev": "vite --host",
+    "data": "node tools/data-check.mjs",
     "build": "tsc --noEmit && vite build && node tools/size-report.mjs",
     "preview": "vite preview --host --port 4173 --strictPort",
     "test": "vitest run",
     "e2e": "playwright test",
-    "check": "npm run test && npm run build && npm run e2e"
+    "check": "npm run data && npm run test && npm run build && npm run e2e"
   },
   "dependencies": {
     "pixi.js": "8.21.0"

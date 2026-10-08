@@ -1,0 +1,5 @@
+id,order,name_key,xp_mult,enemy_hp_mult,enemy_dmg_mult,current_dx,current_dy,enemy_id,boss_id,event_id,new_buildings,water_color
+lagoon,1,loc.lagoon,1,1,1.0,-1,1,crab,schooner,storm,net_tower|spear_tower|whirlpool,#1b6f8f
+reef,2,loc.reef,2,2,1.2,-1,0.3,shark,octopus,shark_hour,autorepair,#147a7a
+north,3,loc.north,4,4,1.4,0,1,orca,white_whale,blizzard,crane,#2c5d7c
+strait,4,loc.strait,8,6,1.6,-1,-0.4,ray,ghost_ship,squall,lighthouse,#24425e

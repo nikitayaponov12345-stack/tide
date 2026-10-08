@@ -1,0 +1,5 @@
+id,location,name_key,duration_s,enemy_rate_mult,flow_mult,current_speed_mult,current_turn_deg,enemies_surface
+storm,lagoon,event.storm,30,3,0.5,1,0,1
+shark_hour,reef,event.shark_hour,25,3,0.8,1,0,0
+blizzard,north,event.blizzard,30,2,0.6,1.4,0,0
+squall,strait,event.squall,25,2,0.7,1,90,0

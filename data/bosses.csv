@@ -1,0 +1,5 @@
+id,location,name_key,behavior,visit_speed,visit_attack_period_s,visit_damage,visit_duration_s,final_hp,final_attack_period_s,final_damage,part_hp,parts,summon_count,chest_item
+schooner,lagoon,boss.schooner,pass_bottom_edge,85,6,25,,500,4,25,,,,pirate_chest
+octopus,reef,boss.octopus,thief_tentacles,,,,20,500,,,3,6,,octopus_pearl
+white_whale,north,boss.white_whale,wave_push,,,15,,500,6,30,,,,ambergris
+ghost_ship,strait,boss.ghost_ship,summon_rays,,,,,500,8,25,,,3,ghost_chest
