@@ -8,9 +8,10 @@ import { Gesture, type PointerInfo } from './gesture';
  * Работает первый палец (pointerId), второй игнорируется. pointercancel — это onCancel, а не onUp.
  * Жест, нажатие которого пришлось на стройку, ведёт призрак: мышь ставит клетку по отпусканию,
  * палец и перо только переносят призрак (ставит кнопка «Поставить»). Жест, начатый до стройки, доводит Gesture.
+ * Сдвиги первого пальца жеста, начатого не в стройке, идут в Gesture.onMove — так палец водит моряка.
  */
 export class PointerInput {
-  private readonly gesture = new Gesture();
+  private readonly gesture: Gesture;
   private active: number | null = null;
   /** Активный жест начался в стройке. */
   private building = false;
@@ -20,7 +21,9 @@ export class PointerInput {
     private readonly game: Game,
     private readonly layout: () => Layout,
     private readonly cursor: BuildCursor,
+    walkDragPx: number,
   ) {
+    this.gesture = new Gesture(walkDragPx);
     canvas.addEventListener('pointerdown', (e) => this.down(e));
     canvas.addEventListener('pointermove', (e) => this.move(e));
     canvas.addEventListener('pointerup', (e) => this.end(e, false));
@@ -50,8 +53,9 @@ export class PointerInput {
     else this.gesture.onDown(p, this.game);
   }
 
-  /** Мышь ведёт призрак и без нажатия (наведение), палец и перо — пока прижаты. */
+  /** Мышь ведёт призрак и без нажатия (наведение), палец и перо — пока прижаты. Вне стройки — ходьба пальцем. */
   private move(e: PointerEvent): void {
+    if (e.pointerId === this.active && !this.building) this.gesture.onMove(this.info(e), this.game);
     if (this.game.build === null) return;
     const p = this.info(e);
     if (p.type === 'mouse' || (this.building && e.pointerId === this.active)) this.cursor.point(p.x, p.y, p.type);

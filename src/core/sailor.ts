@@ -1,6 +1,7 @@
 import type { Tables } from './data/tables';
+import type { Raft } from './raft';
 
-/** Моряк: клетка плота и квадрат, которого касается сеть. Пока стоит в центральной клетке; шаг — M0-07. */
+/** Моряк: клетка плота и квадрат, которого касается сеть. Начинает в центральной клетке и ходит по плоту. */
 export class Sailor {
   gx = 0;
   gy = 0;
@@ -20,6 +21,15 @@ export class Sailor {
 
   get y(): number {
     return this.gy * this.cellPx;
+  }
+
+  /** Шаг на соседнюю клетку по стороне; не по стороне или клетки нет → false. */
+  move(dx: number, dy: number, raft: Raft): boolean {
+    if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
+    if (!raft.has(this.gx + dx, this.gy + dy)) return false;
+    this.gx += dx;
+    this.gy += dy;
+    return true;
   }
 
   /** Круг (x, y, r) пересекает квадрат моряка (касание считается). */

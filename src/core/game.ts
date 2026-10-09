@@ -1,3 +1,4 @@
+import { TIME_EPS } from './clock';
 import type { CardKind, CardRow, Tables } from './data/tables';
 import { Deck, type DeckContext, type OfferCard } from './deck';
 import { Net, type NetParams } from './net';
@@ -28,8 +29,14 @@ export class Game {
   readonly stats = new Stats();
   window: OfferWindow | null = null;
   build: { card: string } | null = null;
+  /** Моряк уже шагал: подсказка о ходьбе больше не нужна. В сохранение — M1. */
+  hasWalked = false;
+  /** Время мира, когда клеток впервые стало две; null — ещё не стало. В сохранение — M1. */
+  secondCellMs: number | null = null;
   /** Уровни, чьи окна ещё не показаны. */
   private readonly pending: number[] = [];
+  private readonly walkHintDelayMs: number;
+  private readonly walkHintMaxLevel: number;
 
   constructor(data: Tables, cfg: GameConfig) {
     const loc = data.location(cfg.locationId);
@@ -44,6 +51,8 @@ export class Game {
     this.net = new Net(data, { radius: tier.netRadius, capacity: tier.netCapacity, range: tier.throwRange, pull: tier.pull }, this.sailor);
     this.progression = new Progression(data, loc.xpMult);
     this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), M0_KINDS);
+    this.walkHintDelayMs = data.num('walk_hint_delay_ms');
+    this.walkHintMaxLevel = data.num('walk_hint_max_level');
   }
 
   /** Открыто окно выбора или идёт стройка: мир стоит. */
@@ -71,6 +80,28 @@ export class Game {
     const ok = this.net.throwTo(x, y);
     if (ok) this.stats.throws++;
     return ok;
+  }
+
+  /** Шаг моряка на соседнюю клетку по стороне. Пауза, не по стороне или клетки нет → false. */
+  walk(dx: number, dy: number): boolean {
+    if (this.paused || !this.sailor.move(dx, dy, this.raft)) return false;
+    this.stats.steps++;
+    this.hasWalked = true;
+    // Сеть у моряка переезжает с ним; сеть в воде тянется к его новой точке сама.
+    if (this.net.state === 'ready') this.net.reset();
+    return true;
+  }
+
+  /** Подсказка о ходьбе: две клетки и больше, ещё не шагал, уровень ниже порога, не пауза, после второй клетки прошла задержка. */
+  get walkHint(): boolean {
+    return (
+      this.raft.cells.length >= 2 &&
+      !this.hasWalked &&
+      this.progression.level < this.walkHintMaxLevel &&
+      !this.paused &&
+      this.secondCellMs !== null &&
+      this.world.timeMs - this.secondCellMs + TIME_EPS >= this.walkHintDelayMs
+    );
   }
 
   /** Работает и на паузе: отпускание пальца во время окна выключает удержание. */
@@ -107,6 +138,7 @@ export class Game {
   placeCell(gx: number, gy: number): boolean {
     if (!this.build || !this.raft.canAdd(gx, gy)) return false;
     this.raft.add(gx, gy);
+    if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
     this.build = null;
     this.openNext();
     return true;

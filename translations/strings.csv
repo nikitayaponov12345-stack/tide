@@ -101,6 +101,8 @@ loc.north,Северные воды,Northern Waters
 loc.reef,Риф,Reef
 loc.strait,Штормовой пролив,Storm Strait
 ui.choose_card,Выбери улучшение,Choose an upgrade
+ui.hint.walk_keys,WASD или стрелки — шаг моряка,WASD or arrow keys — move the sailor
+ui.hint.walk_touch,Проведи пальцем — моряк перейдёт на соседнюю клетку,Swipe to move the sailor to the next tile
 ui.level,Уровень,Level
 ui.need_free_cell,Требуется свободный плот,Needs a free raft tile
 ui.new_level,Новый уровень!,Level up!

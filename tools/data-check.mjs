@@ -135,10 +135,13 @@ const needKey = (r, col, optional = false) => {
 // ---------- constants ----------
 unique(T.constants, (r) => r.key, 'data/constants.csv');
 const C = Object.fromEntries(T.constants.map((r) => [r.key, num(r, 'value')]));
-const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'sailor_box_px', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade'];
+const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'sailor_box_px', 'walk_drag_px', 'walk_hint_delay_ms', 'walk_hint_max_level', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade'];
 for (const k of needConst) if (!(k in C)) err(`data/constants.csv: нет ключа ${k}`);
 if (C.item_speed_min > C.item_speed_max) err('data/constants.csv: item_speed_min больше item_speed_max');
 if (C.net_pull_min > C.net_pull_max) err('data/constants.csv: net_pull_min больше net_pull_max');
+if (!(C.walk_drag_px > 0)) err('data/constants.csv: walk_drag_px должен быть больше 0 — иначе шаги пальцем не кончатся');
+if (!(C.walk_hint_delay_ms >= 0)) err('data/constants.csv: walk_hint_delay_ms не может быть меньше 0');
+if (!(Number.isInteger(C.walk_hint_max_level) && C.walk_hint_max_level >= 2)) err('data/constants.csv: walk_hint_max_level — целое не меньше 2');
 if (C.raft_grid % 2 !== 1) err('data/constants.csv: raft_grid должен быть нечётным — моряк начинает в центральной клетке');
 
 // ---------- levels ----------

@@ -31,7 +31,7 @@ export interface GameDebug {
     xpToNext: number;
     /** caught — сколько предметов в сети. */
     net: { state: NetState; x: number; y: number; caught: number; capacity: number; range: number };
-    stats: { throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; gameMs: number };
+    stats: { throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; steps: number; gameMs: number };
     /** Клетка моряка и её центр в координатах мира. */
     sailor: { gx: number; gy: number; x: number; y: number };
     /** Окно выбора: карточки в порядке показа. */
@@ -39,6 +39,8 @@ export interface GameDebug {
     /** Стройка: карточка и места для новой клетки. */
     build: null | { card: string; candidates: Array<{ gx: number; gy: number }> };
     raft: Array<{ gx: number; gy: number }>;
+    /** Подсказка о ходьбе видна (правило ядра Game.walkHint). */
+    walkHint: boolean;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -46,6 +48,8 @@ export interface GameDebug {
     setPull(on: boolean): void;
     takeCard(i: number): boolean;
     placeCell(gx: number, gy: number): boolean;
+    /** Шаг моряка на соседнюю клетку по стороне. */
+    walk(dx: number, dy: number): boolean;
   };
   /** Опыт до следующего уровня сразу: окно открывается тут же. */
   debugLevelUp(): void;

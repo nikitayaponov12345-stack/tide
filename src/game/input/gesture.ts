@@ -7,6 +7,7 @@ export interface GestureGame {
   readonly net: { readonly state: NetState };
   throwTo(x: number, y: number): boolean;
   setPull(on: boolean): void;
+  walk(dx: number, dy: number): boolean;
 }
 
 /**
@@ -14,15 +15,33 @@ export interface GestureGame {
  * (если жест начался при ready и сеть всё ещё ready); когда сеть в воде, нажатие включает удержание, отпускание выключает.
  * Жест ведёт первый палец: до его up или cancel события других пальцев не дают команд
  * (pointer.ts фильтрует так же; здесь — чтобы жест вёл себя одинаково и под ботом). cancel никогда не бросает.
+ * Палец и перо ещё и водят моряка: каждые walkDragPx вдоль оси — шаг на соседнюю клетку. Жест, набравший
+ * walkDragPx хоть раз, — ходьба: на отпускание он не бросает, даже если шаг не удался. Мышь не ходит.
  */
 export class Gesture {
   private finger: number | null = null;
   private fromReady = false;
+  /** Жест хоть раз набрал walkDragPx. */
+  private walked = false;
+  private lastX = 0;
+  private lastY = 0;
+  /** Накопленный сдвиг по осям, точки мира. */
+  private accX = 0;
+  private accY = 0;
+
+  constructor(private readonly walkDragPx: number) {
+    if (!(walkDragPx > 0)) throw new Error(`Gesture: walkDragPx = ${walkDragPx}, нужно больше 0`);
+  }
 
   onDown(p: PointerInfo, g: GestureGame): void {
     if (this.finger !== null) return;
     this.finger = p.id;
     this.fromReady = false;
+    this.walked = false;
+    this.lastX = p.x;
+    this.lastY = p.y;
+    this.accX = 0;
+    this.accY = 0;
     if (g.net.state === 'ready') {
       if (p.type === 'mouse') g.throwTo(p.x, p.y);
       else this.fromReady = true;
@@ -31,10 +50,32 @@ export class Gesture {
     }
   }
 
+  /** Сдвиг первого пальца или пера: шаги моряка, сначала по X, потом по Y. Удержание сети не трогает. */
+  onMove(p: PointerInfo, g: GestureGame): void {
+    if (p.id !== this.finger || p.type === 'mouse') return;
+    this.accX += p.x - this.lastX;
+    this.accY += p.y - this.lastY;
+    this.lastX = p.x;
+    this.lastY = p.y;
+    const d = this.walkDragPx;
+    while (Math.abs(this.accX) >= d) {
+      const sx = Math.sign(this.accX);
+      this.accX -= sx * d;
+      this.walked = true;
+      g.walk(sx, 0);
+    }
+    while (Math.abs(this.accY) >= d) {
+      const sy = Math.sign(this.accY);
+      this.accY -= sy * d;
+      this.walked = true;
+      g.walk(0, sy);
+    }
+  }
+
   onUp(p: PointerInfo, g: GestureGame): void {
     if (p.id !== this.finger) return;
     this.finger = null;
-    if (p.type !== 'mouse' && this.fromReady && g.net.state === 'ready') g.throwTo(p.x, p.y);
+    if (p.type !== 'mouse' && this.fromReady && !this.walked && g.net.state === 'ready') g.throwTo(p.x, p.y);
     this.fromReady = false;
     g.setPull(false);
   }
