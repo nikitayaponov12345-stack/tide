@@ -49,6 +49,8 @@ export interface GameDebug {
     raft: Array<{ gx: number; gy: number }>;
     /** Подсказка о ходьбе видна (правило ядра Game.walkHint). */
     walkHint: boolean;
+    /** Открыто окно паузы. */
+    menu: boolean;
     /** Выбранный слот оружия и есть ли копьё (слоты видны). */
     weapon: Weapon;
     spearOwned: boolean;

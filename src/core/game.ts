@@ -46,6 +46,8 @@ export class Game {
   private readonly xpMult: number;
   window: OfferWindow | null = null;
   build: { card: string } | null = null;
+  /** Открыто окно паузы. В снимок не входит: после загрузки игра идёт. */
+  menu = false;
   /** Выбранный слот оружия. */
   weapon: Weapon = 'net';
   /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». */
@@ -126,9 +128,14 @@ export class Game {
     return g;
   }
 
-  /** Открыто окно выбора или идёт стройка: мир стоит. */
+  /** Открыто окно выбора, идёт стройка или открыта пауза: мир стоит. */
   get paused(): boolean {
-    return this.window !== null || this.build !== null;
+    return this.window !== null || this.build !== null || this.menu;
+  }
+
+  /** Окно паузы. Уровень, набранный до неё, открывает окно на первом шаге после. */
+  setMenu(on: boolean): void {
+    this.menu = on;
   }
 
   step(dtMs: number): void {
@@ -212,8 +219,9 @@ export class Game {
     this.stats.taps++;
   }
 
-  /** Взять карточку i окна (в порядке показа). Окна нет, индекса нет, карточка недоступна → false. */
+  /** Взять карточку i окна (в порядке показа). Окна нет, индекса нет, карточка недоступна, открыта пауза → false. */
   takeCard(i: number): boolean {
+    if (this.menu) return false;
     const w = this.window;
     const offer = w?.cards[i];
     if (!w || !offer || !offer.available) return false;
@@ -233,9 +241,9 @@ export class Game {
     return true;
   }
 
-  /** Стройка: клетка на (gx, gy). Стройки нет или место не подходит → false. */
+  /** Стройка: клетка на (gx, gy). Стройки нет, место не подходит или открыта пауза → false. */
   placeCell(gx: number, gy: number): boolean {
-    if (!this.build || !this.raft.canAdd(gx, gy)) return false;
+    if (this.menu || !this.build || !this.raft.canAdd(gx, gy)) return false;
     this.raft.add(gx, gy);
     if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
     this.build = null;

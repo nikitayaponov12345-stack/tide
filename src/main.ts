@@ -9,6 +9,7 @@ import { KeyboardInput } from './game/input/keys';
 import { PointerInput } from './game/input/pointer';
 import { DESIGN, worldToScreen, type Layout } from './game/layout';
 import { Saver } from './game/saver';
+import { parseSettings, SETTINGS_KEY } from './game/settings';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
@@ -16,11 +17,12 @@ import { CardWindow } from './ui/cards';
 import { WalkHint } from './ui/hint';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
+import { PauseMenu } from './ui/pause';
 import { PlaceButton } from './ui/place';
 import { ResumePlaque } from './ui/plaque';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.8';
+const VERSION = '0.0.9';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -37,7 +39,8 @@ function worldSize(layout: Layout): { halfW: number; halfH: number; speedMult: n
 async function boot(): Promise<void> {
   const platform = new StubPlatform();
   await platform.init();
-  const lang = platform.language() === 'ru' ? 'ru' : 'en';
+  // Язык из окна паузы, иначе — язык площадки.
+  const lang = parseSettings(await platform.load(SETTINGS_KEY)).lang ?? (platform.language() === 'ru' ? 'ru' : 'en');
 
   const stage = new Stage();
   await stage.init(document.getElementById('game')!);
@@ -90,6 +93,18 @@ async function boot(): Promise<void> {
   const ui = document.getElementById('ui')!;
   const hud = new Hud(ui, text);
   const overlay = new Overlay(ui);
+  // Раньше окна выбора: затемнение окна закрывает кнопку паузы, как и прочие кнопки поля.
+  const pause = new PauseMenu(ui, game, text, lang, DATA.num('erase_hold_ms'), {
+    language: (l) => {
+      saver.save();
+      void platform.save(SETTINGS_KEY, JSON.stringify({ lang: l })).then(() => location.reload());
+    },
+    erase: () => {
+      // Без disable() pagehide при перезагрузке тут же записал бы партию обратно.
+      saver.disable();
+      void platform.save(SAVE_KEY, '').then(() => location.reload());
+    },
+  });
   const cards = new CardWindow(ui, game, text);
   const cursor = new BuildCursor(cellPx);
   const place = new PlaceButton(ui, game, cursor, text);
@@ -132,6 +147,7 @@ async function boot(): Promise<void> {
     watchBuild();
     view.sync(game, cursor);
     hud.update(game, stage.layout);
+    pause.update(stage.layout, performance.now());
     cards.update(stage.layout, performance.now());
     place.update(stage.layout, cellPx);
     hint.update(stage.layout);
@@ -178,6 +194,7 @@ async function boot(): Promise<void> {
       build: game.build && { card: game.build.card, candidates: raft.candidates() },
       raft: raft.cells.map((c) => ({ ...c })),
       walkHint: game.walkHint,
+      menu: game.menu,
       weapon: game.weapon,
       spearOwned: game.spearOwned,
       spear: { state: game.spear.state, x: game.spear.x, y: game.spear.y, damage: game.spear.damage },

@@ -2,14 +2,17 @@ import { FixedStep } from '../../core/clock';
 import type { Game, OfferWindow } from '../../core/game';
 import type { Platform } from '../../platform/platform';
 
+/** Метка открытой паузы для сравнения с показанным окном. */
+const MENU = {};
+
 /**
  * Шаги ядра в игровом времени и сигналы площадке, как у оригинала: первое нажатие — «игра идёт»,
- * окно выбора открылось — «игра остановлена», закрылось после «Взять» — «игра идёт» (даже если дальше стройка).
+ * окно выбора или пауза открылись — «игра остановлена», закрылись — «игра идёт» (даже если дальше стройка).
  * Сигналы — только после первого нажатия игрока.
  */
 export class Control {
   private playing = false;
-  private shownWindow: OfferWindow | null = null;
+  private shown: OfferWindow | typeof MENU | null = null;
   private readonly clock = new FixedStep();
 
   constructor(
@@ -17,24 +20,29 @@ export class Control {
     private readonly platform: Pick<Platform, 'gameplayStart' | 'gameplayStop'>,
   ) {}
 
-  /** Время кадра → шаги ядра; затем сигналы о смене окна (в том числе после команд ввода между кадрами). */
+  /** Время кадра → шаги ядра; затем сигналы о смене окна или паузы (в том числе после команд ввода между кадрами). */
   frame(frameMs: number): void {
     this.clock.advance(frameMs, (dt) => this.game.step(dt));
-    const w = this.game.window;
-    if (w === this.shownWindow) return;
+    const w = this.stopper();
+    if (w === this.shown) return;
     if (this.playing) {
-      if (this.shownWindow !== null) this.platform.gameplayStart();
+      if (this.shown !== null) this.platform.gameplayStart();
       if (w !== null) this.platform.gameplayStop();
     }
-    this.shownWindow = w;
+    this.shown = w;
   }
 
-  /** Первое действие игрока, один раз. При открытом окне «игра идёт» придёт, когда окно закроется. */
+  /** Первое действие игрока, один раз. При открытом окне или паузе «игра идёт» придёт, когда они закроются. */
   notePlay(): void {
     if (this.playing) return;
     this.playing = true;
-    // До первого нажатия сигналов не было: окно, открытое сейчас, считается уже показанным.
-    this.shownWindow = this.game.window;
-    if (this.game.window === null) this.platform.gameplayStart();
+    // До первого нажатия сигналов не было: окно или пауза, открытые сейчас, считаются уже показанными.
+    this.shown = this.stopper();
+    if (this.shown === null) this.platform.gameplayStart();
+  }
+
+  /** То, что останавливает игру для площадки: окно выбора, иначе пауза, иначе null. */
+  private stopper(): OfferWindow | typeof MENU | null {
+    return this.game.window ?? (this.game.menu ? MENU : null);
   }
 }

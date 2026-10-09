@@ -221,6 +221,90 @@
         text-shadow: 0 1px 2px #000;
         pointer-events: none;
       }
+      #ui .pause-btn {
+        position: absolute;
+        box-sizing: border-box;
+        padding: 0;
+        font-weight: 700;
+        border-radius: 10px;
+      }
+      /* Поверх всех кнопок поля, в том числе созданных позже: на паузе ни «Поставить», ни слоты не нажимаются. */
+      #ui .pause-dim {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.7);
+        pointer-events: auto;
+      }
+      #ui .pause-panel {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+      }
+      #ui .pause-col {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 520px;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      #ui .pause-title {
+        text-align: center;
+        font-size: 60px;
+        font-weight: 800;
+        color: #ffd166;
+        text-shadow: 0 2px 4px #000;
+      }
+      #ui .pause-item {
+        position: relative;
+        height: 84px;
+        font-size: 30px;
+        font-weight: 700;
+        background: #18394a;
+        border: 3px solid rgba(255, 255, 255, 0.6);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      #ui .pause-item.selected {
+        border-color: #ffd166;
+        background: #24506a;
+        box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.5);
+      }
+      #ui .pause-langs {
+        display: flex;
+        gap: 20px;
+      }
+      #ui .pause-langs .pause-item {
+        flex: 1;
+      }
+      #ui .pause-erase {
+        background: #6a2424;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #ui .pause-erase span {
+        position: relative;
+      }
+      #ui .pause-erase-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        background: #d64545;
+      }
+      #ui .pause-hint {
+        margin-top: -12px;
+        text-align: center;
+        font-size: 24px;
+        text-shadow: 0 1px 2px #000;
+      }
     </style>
   </head>
   <body>
