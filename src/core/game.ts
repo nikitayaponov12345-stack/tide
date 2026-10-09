@@ -1,20 +1,28 @@
 import { TIME_EPS } from './clock';
 import type { CardKind, CardRow, Tables } from './data/tables';
-import { Deck, type DeckContext, type OfferCard } from './deck';
-import { Enemies, type EnemiesContext } from './enemies';
-import { Net, type NetParams } from './net';
-import { Progression } from './progression';
-import { Raft } from './raft';
+import { Deck, type DeckContext, type DeckSnapshot, type OfferCard } from './deck';
+import { Enemies, type EnemiesContext, type EnemiesSnapshot } from './enemies';
+import { Net, type NetParams, type NetSnapshot } from './net';
+import { Progression, type ProgressionSnapshot } from './progression';
+import { Raft, type Cell } from './raft';
 import { Rng } from './rng';
 import { Sailor } from './sailor';
-import { Spear } from './spear';
-import { Stats } from './stats';
-import { World } from './world';
+import { Spear, type SpearSnapshot } from './spear';
+import { Stats, type StatsSnapshot } from './stats';
+import { World, type WorldSnapshot } from './world';
 
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
 /** Окно выбора уровня level; на каждое окно — новый объект. */
 export interface OfferWindow { level: number; cards: OfferCard[] }
 export type Weapon = 'net' | 'spear';
+
+/** Снимок партии (ARCHITECTURE §7): снимки модулей и поля игры. Только данные — JSON возвращает его без потерь. */
+export interface GameSnapshot {
+  world: WorldSnapshot; raft: { cells: Cell[] }; sailor: { gx: number; gy: number }; net: NetSnapshot; spear: SpearSnapshot;
+  enemies: EnemiesSnapshot; progression: ProgressionSnapshot; deck: DeckSnapshot; stats: StatsSnapshot;
+  window: OfferWindow | null; build: { card: string } | null; weapon: Weapon; spearOwned: boolean; hasWalked: boolean;
+  secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
+}
 
 /** Виды карточек M0: постройки и их улучшения придут в M1 вместе с механиками. */
 const M0_KINDS: readonly CardKind[] = ['raft', 'sailor_upgrade'];
@@ -40,15 +48,15 @@ export class Game {
   build: { card: string } | null = null;
   /** Выбранный слот оружия. */
   weapon: Weapon = 'net';
-  /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». В сохранение — M1. */
+  /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». */
   spearOwned = false;
   /** Название оружия яруса моряка — подпись слота копья. */
   readonly weaponKey: string;
-  /** Моряк уже шагал: подсказка о ходьбе больше не нужна. В сохранение — M1. */
+  /** Моряк уже шагал: подсказка о ходьбе больше не нужна. */
   hasWalked = false;
-  /** Время мира, когда клеток впервые стало две; null — ещё не стало. В сохранение — M1. */
+  /** Время мира, когда клеток впервые стало две; null — ещё не стало. */
   secondCellMs: number | null = null;
-  /** Сеть хоть раз вернула предмет роли FIRST_ENEMY_ROLE. В сохранение — M1. */
+  /** Сеть хоть раз вернула предмет роли FIRST_ENEMY_ROLE. */
   mediumCaught = false;
   /** Уровни, чьи окна ещё не показаны. */
   private readonly pending: number[] = [];
@@ -78,6 +86,44 @@ export class Game {
     this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), M0_KINDS);
     this.walkHintDelayMs = data.num('walk_hint_delay_ms');
     this.walkHintMaxLevel = data.num('walk_hint_max_level');
+  }
+
+  /** Снимок партии: копии, дальнейшая игра его не меняет. */
+  snapshot(): GameSnapshot {
+    const w = this.window;
+    return {
+      world: this.world.snapshot(), raft: this.raft.snapshot(), sailor: this.sailor.snapshot(), net: this.net.snapshot(),
+      spear: this.spear.snapshot(), enemies: this.enemies.snapshot(), progression: this.progression.snapshot(),
+      deck: this.deck.snapshot(), stats: this.stats.snapshot(),
+      window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })) },
+      build: this.build && { ...this.build },
+      weapon: this.weapon, spearOwned: this.spearOwned, hasWalked: this.hasWalked, secondCellMs: this.secondCellMs,
+      mediumCaught: this.mediumCaught, pending: this.pending.slice(), hold: this.hold,
+    };
+  }
+
+  /** Партия из снимка. В cfg — нынешняя раскладка (поле и speedMult) и тот же сид. Битый снимок → throw. */
+  static restore(data: Tables, cfg: GameConfig, s: GameSnapshot): Game {
+    const g = new Game(data, cfg);
+    g.world.restore(s.world);
+    g.raft.restore(s.raft);
+    g.sailor.restore(s.sailor);
+    g.net.restore(s.net);
+    g.spear.restore(s.spear);
+    g.enemies.restore(s.enemies);
+    g.progression.restore(s.progression);
+    g.deck.restore(s.deck);
+    g.stats.restore(s.stats);
+    g.window = s.window && { level: s.window.level, cards: s.window.cards.map((c) => ({ ...c })) };
+    g.build = s.build && { card: s.build.card };
+    g.weapon = s.weapon;
+    g.spearOwned = s.spearOwned;
+    g.hasWalked = s.hasWalked;
+    g.secondCellMs = s.secondCellMs;
+    g.mediumCaught = s.mediumCaught;
+    g.pending.push(...s.pending);
+    g.hold = s.hold;
+    return g;
   }
 
   /** Открыто окно выбора или идёт стройка: мир стоит. */

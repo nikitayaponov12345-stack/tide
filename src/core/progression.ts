@@ -4,6 +4,8 @@ import type { CaughtItem } from './net';
 
 export interface Icon { xp: number; launchMs: number; arriveMs: number; fromX: number; fromY: number }  // xp — уже × сила локации
 
+export interface ProgressionSnapshot { level: number; xp: number; icons: Icon[]; levelUps: number[] }
+
 /** Опыт и уровни. Улов превращается в значки, опыт начисляется по их прилёту к полосе. */
 export class Progression {
   level = 1;
@@ -61,6 +63,20 @@ export class Progression {
 
   takeLevelUps(): number[] {
     return this.levelUps.splice(0, this.levelUps.length);
+  }
+
+  /** Значки в полёте — в снимке: их опыт ещё не начислен. */
+  snapshot(): ProgressionSnapshot {
+    return { level: this.level, xp: this.xp, icons: this.icons.map((i) => ({ ...i })), levelUps: this.levelUps.slice() };
+  }
+
+  restore(s: ProgressionSnapshot): void {
+    this.level = s.level;
+    this.xp = s.xp;
+    this.icons.length = 0;
+    for (const i of s.icons) this.icons.push({ ...i });
+    this.levelUps.length = 0;
+    this.levelUps.push(...s.levelUps);
   }
 
   /** Отладка и проба: уровень, xp = 0, значки сброшены. */

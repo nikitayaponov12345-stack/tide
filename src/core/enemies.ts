@@ -16,6 +16,8 @@ export interface EnemyHit { x: number; y: number; dealt: number }
 /** Что враги видят у игры на шаге; ready — условие первого врага выполнено. */
 export interface EnemiesContext { raft: Raft; level: number; ready: boolean }
 
+export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
+
 /** Повадка, которую знает M0: краб Лагуны идёт к клетке под водой. Укус — M1. */
 const WALK_UNDERWATER = 'walk_underwater';
 
@@ -60,6 +62,23 @@ export class Enemies {
     const d = this.data;
     const s = d.num('enemy_interval_base_s') / (1 + d.num('enemy_interval_per_building') * buildings);
     return Math.max(d.num('enemy_interval_min_s'), s) * 1000;
+  }
+
+  snapshot(): EnemiesSnapshot {
+    return {
+      list: this.list.map((e) => ({ ...e })), spawned: this.spawned, started: this.started, acc: this.acc,
+      nextId: this.nextId, rng: this.rng.getState(),
+    };
+  }
+
+  restore(s: EnemiesSnapshot): void {
+    this.list.length = 0;
+    for (const e of s.list) this.list.push({ ...e });
+    this.spawned = s.spawned;
+    this.started = s.started;
+    this.acc = s.acc;
+    this.nextId = s.nextId;
+    this.rng.setState(s.rng);
   }
 
   /** Шаг: движение врагов → таймер появления; в шаг, когда условие стало выполнено, — первый враг. */

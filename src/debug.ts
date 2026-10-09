@@ -79,6 +79,10 @@ export interface GameDebug {
   /** Точка мира в координатах окна (CSS-пиксели). */
   toScreen(x: number, y: number): { x: number; y: number };
   platformLog(): PlatformCall[];
+  /** Партия продолжена из записи. */
+  resumed: boolean;
+  /** Записать сейчас; текст записи (после disable — ''). */
+  debugSave(): string;
 }
 
 declare global {

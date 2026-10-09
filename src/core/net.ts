@@ -7,6 +7,11 @@ export interface NetParams { radius: number; capacity: number; range: number; pu
 export interface CaughtItem { kind: string; role: Role; xp: number; weight: number; x: number; y: number }  // xp — Item.xp (без силы локации)
 
 type Point = { x: number; y: number };
+/** Полёт: откуда, куда, длина пути и пройденное. Общий вид для сети и копья. */
+export interface Flight { fromX: number; fromY: number; toX: number; toY: number; path: number; done: number }
+export interface NetSnapshot {
+  state: NetState; x: number; y: number; caught: CaughtItem[]; params: NetParams; flight: Flight; hold: boolean;
+}
 
 /**
  * Сеть моряка: бросок от моряка, полёт с замедлением, ловля, тяга к моряку удержанием.
@@ -84,6 +89,25 @@ export class Net {
     this.hold = on;
     if (on && this.state === 'lying') this.state = 'pulling';
     else if (!on && this.state === 'pulling') this.state = 'lying';
+  }
+
+  snapshot(): NetSnapshot {
+    const { fromX, fromY, toX, toY, path, done } = this;
+    return {
+      state: this.state, x: this.x, y: this.y, caught: this.caught.map((it) => ({ ...it })), params: { ...this.params },
+      flight: { fromX, fromY, toX, toY, path, done }, hold: this.hold,
+    };
+  }
+
+  restore(s: NetSnapshot): void {
+    this.state = s.state;
+    this.x = s.x;
+    this.y = s.y;
+    this.caught.length = 0;
+    for (const it of s.caught) this.caught.push({ ...it });
+    this.params = { ...s.params };
+    ({ fromX: this.fromX, fromY: this.fromY, toX: this.toX, toY: this.toY, path: this.path, done: this.done } = s.flight);
+    this.hold = s.hold;
   }
 
   /** Шаг сети: полёт или тяга → ловля → касание моряка. Не null — сеть забрана с уловом. */

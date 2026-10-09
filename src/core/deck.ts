@@ -13,6 +13,8 @@ export interface DeckContext {
   bossVisitSeen: boolean;           // был визит босса (M1)
 }
 
+export interface DeckSnapshot { takes: Array<[string, { count: number; lastLevel: number }]>; rng: number }
+
 export const NEED_FREE_CELL = 'ui.need_free_cell';
 
 /**
@@ -52,6 +54,16 @@ export class Deck {
 
   taken(id: string): number {
     return this.takes.get(id)?.count ?? 0;
+  }
+
+  snapshot(): DeckSnapshot {
+    return { takes: [...this.takes].map(([id, t]) => [id, { ...t }]), rng: this.rng.getState() };
+  }
+
+  restore(s: DeckSnapshot): void {
+    this.takes.clear();
+    for (const [id, t] of s.takes) this.takes.set(id, { count: t.count, lastLevel: t.lastLevel });
+    this.rng.setState(s.rng);
   }
 
   /** Окно уровня level; [] — доступной карточки нет, окно не открывается. */

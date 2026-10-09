@@ -48,6 +48,15 @@ export class Raft {
     return true;
   }
 
+  snapshot(): { cells: Cell[] } {
+    return { cells: this.cells.map((c) => ({ ...c })) };
+  }
+
+  restore(s: { cells: Cell[] }): void {
+    this.cells.length = 0;
+    for (const c of s.cells) this.cells.push({ gx: c.gx, gy: c.gy });
+  }
+
   /** Целые клетки без постройки. В M0 построек и урона нет — все клетки (центральная тоже, как у оригинала). */
   freeCells(): number {
     return this.cells.length;

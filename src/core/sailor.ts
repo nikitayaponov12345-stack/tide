@@ -32,6 +32,15 @@ export class Sailor {
     return true;
   }
 
+  snapshot(): { gx: number; gy: number } {
+    return { gx: this.gx, gy: this.gy };
+  }
+
+  restore(s: { gx: number; gy: number }): void {
+    this.gx = s.gx;
+    this.gy = s.gy;
+  }
+
   /** Круг (x, y, r) пересекает квадрат моряка (касание считается). */
   touches(x: number, y: number, r: number): boolean {
     const h = this.box / 2;

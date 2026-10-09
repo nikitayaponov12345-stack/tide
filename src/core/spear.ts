@@ -1,9 +1,11 @@
 import { TIME_EPS } from './clock';
 import type { Tables } from './data/tables';
 import type { EnemyHit } from './enemies';
+import type { Flight } from './net';
 import type { Sailor } from './sailor';
 
 export type SpearState = 'ready' | 'flying' | 'returning';
+export interface SpearSnapshot { state: SpearState; x: number; y: number; damage: number; range: number; flight: Flight }
 
 /** Что копьё видит у врагов: урон по кругу. Enemies подходит как есть. */
 export interface SpearTargets {
@@ -59,6 +61,20 @@ export class Spear {
     this.done = 0;
     this.state = 'flying';
     return true;
+  }
+
+  snapshot(): SpearSnapshot {
+    const { fromX, fromY, toX, toY, path, done } = this;
+    return { state: this.state, x: this.x, y: this.y, damage: this.damage, range: this.range, flight: { fromX, fromY, toX, toY, path, done } };
+  }
+
+  restore(s: SpearSnapshot): void {
+    this.state = s.state;
+    this.x = s.x;
+    this.y = s.y;
+    this.damage = s.damage;
+    this.range = s.range;
+    ({ fromX: this.fromX, fromY: this.fromY, toX: this.toX, toY: this.toY, path: this.path, done: this.done } = s.flight);
   }
 
   /** Шаг копья: полёт → удар в точке падения (ровно один раз) → возврат остатком шага. Попадания этого шага. */

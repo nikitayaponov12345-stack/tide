@@ -1,5 +1,8 @@
 import { ROLES, type Role } from './data/tables';
 
+/** Снимок счётчиков: все числовые поля Stats и xpByRole. */
+export type StatsSnapshot = { [K in keyof Stats as Stats[K] extends number ? K : never]: number } & { xpByRole: Record<Role, number> };
+
 /** Счётчики для бота и отладки. Пишут Game и Enemies. */
 export class Stats {
   throws = 0;        // успешные throwTo
@@ -16,4 +19,16 @@ export class Stats {
   lootDropped = 0;   // предметов-добычи выпало
   /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
   readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
+
+  snapshot(): StatsSnapshot {
+    return { ...this, xpByRole: { ...this.xpByRole } };
+  }
+
+  /** Счётчик, которого нет в записи, остаётся 0. */
+  restore(s: StatsSnapshot): void {
+    const self = this as unknown as Record<string, unknown>;
+    const src = s as unknown as Record<string, unknown>;
+    for (const k of Object.keys(self)) if (typeof self[k] === 'number' && typeof src[k] === 'number') self[k] = src[k];
+    for (const r of ROLES) this.xpByRole[r] = s.xpByRole[r] ?? 0;
+  }
 }

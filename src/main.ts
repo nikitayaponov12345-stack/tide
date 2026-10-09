@@ -1,12 +1,14 @@
 import './debug';
 import { ROLES, type Role } from './core/data/tables';
 import { Game } from './core/game';
+import { isNewerSave, parseSave, SAVE_KEY } from './core/save';
 import { DATA } from './data';
 import { BuildCursor } from './game/input/build';
 import { Control } from './game/input/control';
 import { KeyboardInput } from './game/input/keys';
 import { PointerInput } from './game/input/pointer';
 import { DESIGN, worldToScreen, type Layout } from './game/layout';
+import { Saver } from './game/saver';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
@@ -15,9 +17,10 @@ import { WalkHint } from './ui/hint';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
 import { PlaceButton } from './ui/place';
+import { ResumePlaque } from './ui/plaque';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.7';
+const VERSION = '0.0.8';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -39,7 +42,29 @@ async function boot(): Promise<void> {
   const stage = new Stage();
   await stage.init(document.getElementById('game')!);
 
-  const game = new Game(DATA, { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED });
+  // ?new=1 — новая партия: запись стирается, параметр уходит из адреса, чтобы перезагрузка его не повторила.
+  const url = new URL(location.href);
+  if (url.searchParams.get('new') === '1') {
+    await platform.save(SAVE_KEY, '');
+    url.searchParams.delete('new');
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  }
+  const saved = await platform.load(SAVE_KEY);
+  const newer = isNewerSave(saved);
+  const cfg = { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED };
+  let restored: Game | null = null;
+  const run = parseSave(saved)?.run;
+  if (run && run.locationId === LOCATION) {
+    try {
+      restored = Game.restore(DATA, { ...cfg, seed: run.seed }, run.game);
+    } catch (err) {
+      console.warn('save: запись не читается, новая партия', err);
+    }
+  } else if (saved && !newer) {
+    console.warn('save: запись не подходит, новая партия');
+  }
+  const resumed = restored !== null;
+  const game = restored ?? new Game(DATA, cfg);
   const { world, net, progression, stats, sailor, raft } = game;
   const cellPx = DATA.num('cell_px');
   const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx, enemyRadius: DATA.num('enemy_radius_px') });
@@ -70,6 +95,23 @@ async function boot(): Promise<void> {
   const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
   const hint = new WalkHint(ui, game, text);
+  const plaque = resumed
+    ? new ResumePlaque(
+        ui,
+        text('ui.resume_plaque').replace('{location}', text(DATA.location(LOCATION).nameKey)).replace('{level}', String(progression.level)),
+        DATA.num('resume_plaque_ms'),
+      )
+    : null;
+  const saver = new Saver(platform, game, LOCATION, resumed ? run!.seed : SEED, DATA.num('autosave_s') * 1000);
+  if (newer) {
+    // Старая сборка из кеша не затирает запись новой.
+    saver.disable();
+    console.warn('save: запись новее этой сборки — игра без записи');
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saver.save();
+  });
+  window.addEventListener('pagehide', () => saver.save());
   const slots = new WeaponSlots(ui, game, text);
   new PointerInput(stage.app.canvas, game, () => stage.layout, cursor, DATA.num('walk_drag_px'));
   // Шаг с клавиатуры — тоже первое действие игрока; в stats.taps клавиши не входят.
@@ -86,6 +128,7 @@ async function boot(): Promise<void> {
 
   stage.app.ticker.add((ticker) => {
     control.frame(ticker.deltaMS);
+    saver.frame();
     watchBuild();
     view.sync(game, cursor);
     hud.update(game, stage.layout);
@@ -93,6 +136,7 @@ async function boot(): Promise<void> {
     place.update(stage.layout, cellPx);
     hint.update(stage.layout);
     slots.update(stage.layout);
+    plaque?.update(stage.layout, performance.now());
     overlay.update(
       performance.now(),
       `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
@@ -153,6 +197,8 @@ async function boot(): Promise<void> {
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),
     platformLog: () => platform.log.slice(),
+    resumed,
+    debugSave: () => saver.save(),
   };
   platform.loadingFinished();
   window.addEventListener('pointerdown', () => control.notePlay());

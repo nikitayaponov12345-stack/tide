@@ -109,6 +109,7 @@ ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place
 ui.resume,Продолжить,Resume
+ui.resume_plaque,{location} · {level} уровень,{location} · level {level}
 ui.slot.net,Сеть,Net
 ui.take,Взять,Take
 weapon.double_spear,Двойное копьё,Double Spear

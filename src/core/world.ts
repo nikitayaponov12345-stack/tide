@@ -19,6 +19,12 @@ export interface Item {
   radius: number; weight: number; speed: number; phase: number;
 }
 
+/** Снимок мира для сохранения. Размеров поля нет: при загрузке их задаёт раскладка. */
+export interface WorldSnapshot {
+  timeMs: number; spawned: number; seeded: number; spawnAcc: number; nextId: number; level: number;
+  items: Item[]; rng: number;
+}
+
 /** Предмет считается ушедшим, когда отплыл за край поля дальше этого запаса (техническая константа). */
 export const MARGIN = 60;
 
@@ -79,6 +85,26 @@ export class World {
     this.spawnAcc = 0;
     this.spawned = 0;
     this.seed();
+  }
+
+  snapshot(): WorldSnapshot {
+    return {
+      timeMs: this.timeMs, spawned: this.spawned, seeded: this.seeded, spawnAcc: this.spawnAcc, nextId: this.nextId,
+      level: this.cfg.level, items: this.items.map((it) => ({ ...it })), rng: this.rng.getState(),
+    };
+  }
+
+  /** Состояние из снимка; размеры поля и speedMult остаются нынешними. */
+  restore(s: WorldSnapshot): void {
+    this.setLevel(s.level);
+    this.timeMs = s.timeMs;
+    this.spawned = s.spawned;
+    this.seeded = s.seeded;
+    this.spawnAcc = s.spawnAcc;
+    this.nextId = s.nextId;
+    this.items.length = 0;
+    for (const it of s.items) this.items.push({ ...it });
+    this.rng.setState(s.rng);
   }
 
   /** Шаг игрового времени: время → движение → удаление ушедших → появление новых. */
