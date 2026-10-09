@@ -5,19 +5,23 @@ import { DESIGN, XP_BAR, fitDesign, type Layout } from '../game/layout';
 const BAR_MIN_PX = 280;
 /** Доля ширины поля под полосу опыта. */
 const BAR_SHARE = 0.4;
-/** «Новый уровень!» держится столько игрового времени. */
-const NEW_LEVEL_MS = 1000;
+
+/** Прямоугольник полосы опыта в координатах окна (CSS-пиксели). */
+export function xpBarRect(width: number, height: number, layout: Layout): { left: number; top: number; width: number; height: number } {
+  const f = fitDesign(width, height, layout);
+  const fieldW = DESIGN[layout].w * f.scale;
+  const w = Math.min(fieldW, Math.max(BAR_MIN_PX, fieldW * BAR_SHARE));
+  return { left: f.x + (fieldW - w) / 2, top: f.y + XP_BAR.top * f.scale, width: w, height: XP_BAR.height * Math.max(f.scale, 0.75) };
+}
 
 /**
- * Полоса опыта у верхнего края поля дизайна по центру: «Уровень N» и заполнение xp / xpToNext;
- * при новом уровне — «Новый уровень!» на секунду. Только читает ядро и забирает levelUps.
+ * Полоса опыта у верхнего края поля дизайна по центру: «Уровень N» и заполнение xp / xpToNext.
+ * Только читает ядро; новый уровень показывает окно выбора.
  */
 export class Hud {
   private readonly bar = document.createElement('div');
   private readonly fill = document.createElement('div');
   private readonly label = document.createElement('div');
-  private readonly banner = document.createElement('div');
-  private bannerUntil = -Infinity;
   private lastText = '';
 
   constructor(host: HTMLElement, private readonly text: (key: string) => string) {
@@ -26,26 +30,13 @@ export class Hud {
     this.fill.className = 'xpbar-fill';
     this.label.className = 'xpbar-label';
     this.bar.append(this.fill, this.label);
-    this.banner.className = 'newlevel';
-    this.banner.dataset.testid = 'newlevel';
-    this.banner.textContent = text('ui.new_level');
-    this.banner.hidden = true;
-    host.append(this.bar, this.banner);
+    host.append(this.bar);
   }
 
   update(game: Game, layout: Layout): void {
     const p = game.progression;
-    const now = game.world.timeMs;
-    if (p.takeLevelUps().length > 0) this.bannerUntil = now + NEW_LEVEL_MS;
-    this.banner.hidden = now >= this.bannerUntil;
-
-    const f = fitDesign(window.innerWidth, window.innerHeight, layout);
-    const fieldW = DESIGN[layout].w * f.scale;
-    const w = Math.min(fieldW, Math.max(BAR_MIN_PX, fieldW * BAR_SHARE));
-    const top = f.y + XP_BAR.top * f.scale;
-    const h = XP_BAR.height * Math.max(f.scale, 0.75);
-    Object.assign(this.bar.style, { left: `${f.x + (fieldW - w) / 2}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
-    Object.assign(this.banner.style, { left: `${f.x + fieldW / 2}px`, top: `${top + h + 8}px` });
+    const r = xpBarRect(window.innerWidth, window.innerHeight, layout);
+    Object.assign(this.bar.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
 
     this.fill.style.width = `${Math.min(100, (p.xp / p.xpToNext()) * 100)}%`;
     const text = `${this.text('ui.level')} ${p.level}`;

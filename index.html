@@ -87,17 +87,106 @@
         font-weight: 700;
         text-shadow: 0 1px 2px #000;
       }
-      #ui .newlevel {
+      #ui [hidden] {
+        display: none !important;
+      }
+      #ui .cards-dim {
         position: absolute;
-        transform: translateX(-50%);
-        font-size: 22px;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        pointer-events: auto;
+      }
+      #ui .cards-panel {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+      }
+      #ui .cards-title,
+      #ui .cards-sub {
+        position: absolute;
+        left: 0;
+        right: 0;
+        text-align: center;
+        text-shadow: 0 2px 4px #000;
+      }
+      #ui .cards-title {
+        font-size: 60px;
         font-weight: 800;
         color: #ffd166;
-        text-shadow: 0 2px 4px #000;
-        white-space: nowrap;
       }
-      #ui .newlevel[hidden] {
-        display: none;
+      #ui .cards-sub {
+        font-size: 34px;
+      }
+      #ui .card {
+        position: absolute;
+        box-sizing: border-box;
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        text-align: left;
+        background: #18394a;
+        border: 3px solid rgba(255, 255, 255, 0.35);
+        border-radius: 16px;
+      }
+      #ui .card:disabled {
+        opacity: 1;
+        cursor: default;
+      }
+      #ui .card.unavailable {
+        opacity: 0.65;
+      }
+      #ui .card.selected {
+        border-color: #ffd166;
+        background: #24506a;
+        box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.5);
+      }
+      #ui .card-row {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      #ui .card-stack {
+        flex-direction: row;
+        align-items: center;
+      }
+      #ui .card-pic {
+        flex: none;
+        width: 120px;
+        height: 120px;
+        border-radius: 12px;
+      }
+      #ui .card-name {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+      #ui .card-desc,
+      #ui .card-reason {
+        font-size: 26px;
+        line-height: 1.25;
+      }
+      #ui .card-reason {
+        color: #ff6b6b;
+      }
+      #ui .cards-take {
+        position: absolute;
+        font-size: 34px;
+        font-weight: 700;
+        background: #2a9d4f;
+        border: 3px solid #fff;
+        border-radius: 14px;
+      }
+      #ui .cards-take:disabled {
+        opacity: 1;
+      }
+      #ui .place {
+        position: absolute;
+        font-weight: 700;
+        background: #2a9d4f;
+        border: 2px solid #fff;
+        border-radius: 12px;
+        padding: 0;
       }
     </style>
   </head>

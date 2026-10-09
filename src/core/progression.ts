@@ -45,15 +45,18 @@ export class Progression {
         i++;
       }
     }
-    if (gained > 0) {
-      this.xp += gained;
-      while (this.xp >= this.xpToNext()) {
-        this.xp -= this.xpToNext();
-        this.level += 1;
-        this.levelUps.push(this.level);
-      }
-    }
+    if (gained > 0) this.addXp(gained);
     return gained;
+  }
+
+  /** Прибавить опыт; каждый новый уровень уходит в levelUps. */
+  addXp(amount: number): void {
+    this.xp += amount;
+    while (this.xp >= this.xpToNext()) {
+      this.xp -= this.xpToNext();
+      this.level += 1;
+      this.levelUps.push(this.level);
+    }
   }
 
   takeLevelUps(): number[] {

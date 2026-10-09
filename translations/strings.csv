@@ -102,6 +102,7 @@ loc.reef,Риф,Reef
 loc.strait,Штормовой пролив,Storm Strait
 ui.choose_card,Выбери улучшение,Choose an upgrade
 ui.level,Уровень,Level
+ui.need_free_cell,Требуется свободный плот,Needs a free raft tile
 ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place

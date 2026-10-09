@@ -2,16 +2,19 @@ import './debug';
 import { ROLES, type Role } from './core/data/tables';
 import { Game } from './core/game';
 import { DATA } from './data';
+import { BuildCursor } from './game/input/build';
 import { Control } from './game/input/control';
 import { PointerInput } from './game/input/pointer';
 import { DESIGN, worldToScreen, type Layout } from './game/layout';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
+import { CardWindow } from './ui/cards';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
+import { PlaceButton } from './ui/place';
 
-const VERSION = '0.0.3';
+const VERSION = '0.0.4';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -34,8 +37,9 @@ async function boot(): Promise<void> {
   await stage.init(document.getElementById('game')!);
 
   const game = new Game(DATA, { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED });
-  const { world, net, progression, stats, sailor } = game;
-  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx: DATA.num('cell_px') });
+  const { world, net, progression, stats, sailor, raft } = game;
+  const cellPx = DATA.num('cell_px');
+  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx });
   view.build(stage.layout);
   stage.onLayout = (layout) => {
     const s = worldSize(layout);
@@ -58,13 +62,28 @@ async function boot(): Promise<void> {
   const ui = document.getElementById('ui')!;
   const hud = new Hud(ui, text);
   const overlay = new Overlay(ui);
+  const cards = new CardWindow(ui, game, text);
+  const cursor = new BuildCursor(cellPx);
+  const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
-  new PointerInput(stage.app.canvas, game, () => stage.layout);
+  new PointerInput(stage.app.canvas, game, () => stage.layout, cursor);
+  // Новая стройка (новый объект game.build) — призрак с нуля. Проверка и в кадре, и до ввода (фаза перехвата):
+  // наведение мыши сразу после «Взять» не должно стереться сбросом в следующем кадре.
+  let lastBuild = game.build;
+  const watchBuild = (): void => {
+    if (game.build === lastBuild) return;
+    lastBuild = game.build;
+    if (lastBuild) cursor.reset();
+  };
+  for (const type of ['pointerdown', 'pointermove', 'pointerup'] as const) window.addEventListener(type, watchBuild, { capture: true });
 
   stage.app.ticker.add((ticker) => {
     control.frame(ticker.deltaMS);
-    view.sync(game);
+    watchBuild();
+    view.sync(game, cursor);
     hud.update(game, stage.layout);
+    cards.update(stage.layout, performance.now());
+    place.update(stage.layout, cellPx);
     overlay.update(
       performance.now(),
       `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
@@ -101,11 +120,18 @@ async function boot(): Promise<void> {
       },
       stats: { ...stats },
       sailor: { gx: sailor.gx, gy: sailor.gy, x: sailor.x, y: sailor.y },
+      window: game.window && { level: game.window.level, cards: game.window.cards.map((c) => ({ ...c })) },
+      build: game.build && { card: game.build.card, candidates: raft.candidates() },
+      raft: raft.cells.map((c) => ({ ...c })),
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
       setPull: (on) => game.setPull(on),
+      takeCard: (i) => game.takeCard(i),
+      placeCell: (gx, gy) => game.placeCell(gx, gy),
     },
+    debugLevelUp: () => game.debugLevelUp(),
+    cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),
     platformLog: () => platform.log.slice(),

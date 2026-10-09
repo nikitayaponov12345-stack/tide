@@ -34,12 +34,23 @@ export interface GameDebug {
     stats: { throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; gameMs: number };
     /** Клетка моряка и её центр в координатах мира. */
     sailor: { gx: number; gy: number; x: number; y: number };
+    /** Окно выбора: карточки в порядке показа. */
+    window: null | { level: number; cards: Array<{ id: string; available: boolean; reason: string | null }> };
+    /** Стройка: карточка и места для новой клетки. */
+    build: null | { card: string; candidates: Array<{ gx: number; gy: number }> };
+    raft: Array<{ gx: number; gy: number }>;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
     throwTo(x: number, y: number): boolean;
     setPull(on: boolean): void;
+    takeCard(i: number): boolean;
+    placeCell(gx: number, gy: number): boolean;
   };
+  /** Опыт до следующего уровня сразу: окно открывается тут же. */
+  debugLevelUp(): void;
+  /** Центр клетки плота в координатах окна (CSS-пиксели). */
+  cellToScreen(gx: number, gy: number): { x: number; y: number };
   /** Предметы в воде, координаты мира. */
   items(): Array<{ id: number; kind: string; role: Role; x: number; y: number; radius: number }>;
   /** Точка мира в координатах окна (CSS-пиксели). */
