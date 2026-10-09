@@ -130,3 +130,103 @@ test('окно выбора и стройка плота', async ({ page }, info
 
   expect(errors).toEqual([]);
 });
+
+test('защита окна 300 мс от двойного нажатия (приёмка 09.10)', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
+
+  // Моменты ловит MutationObserver: его вызов приходит сразу после кадра, в котором окно перестроилось.
+  const r = await page.evaluate(() => new Promise<{ shownAt: number; readyAt: number; disabled: boolean; selected: boolean }>((resolve, reject) => {
+    const dim = document.querySelector<HTMLElement>('[data-testid="cards"]')!;
+    let shown: { at: number; disabled: boolean; selected: boolean } | null = null;
+    const obs = new MutationObserver(() => {
+      const card = dim.querySelector<HTMLButtonElement>('[data-testid="card"]');
+      if (dim.hidden || !card) return;
+      const now = performance.now();
+      if (shown === null) {
+        const disabled = card.disabled;
+        card.click();
+        shown = { at: now, disabled, selected: card.classList.contains('selected') };
+      }
+      if (!card.disabled) {
+        obs.disconnect();
+        clearTimeout(timer);
+        resolve({ shownAt: shown.at, readyAt: now, disabled: shown.disabled, selected: shown.selected });
+      }
+    });
+    const timer = setTimeout(() => {
+      obs.disconnect();
+      reject(new Error('окно не стало активным за 5 с'));
+    }, 5000);
+    obs.observe(dim, { attributes: true, childList: true, subtree: true });
+    window.__game!.debugLevelUp();
+  }));
+  expect(r.disabled).toBe(true);
+  expect(r.selected).toBe(false);
+  expect(r.readyAt - r.shownAt).toBeGreaterThanOrEqual(250);
+
+  const card = page.locator('[data-testid="card"]').first();
+  await press(page, phone, card);
+  await expect(card).toHaveClass(/\bselected\b/);
+});
+
+test('«Поставить» уходит наверх, если закрыла бы призрак (приёмка 09.10)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'горизонталь 1280×720');
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
+
+  // Клетки (0, 1)…(0, 3) — тремя «Плотами», четвёртый остаётся в стройке.
+  const placed = await page.evaluate(() => {
+    const g = window.__game!;
+    let cells = 0;
+    for (let ups = 0; ups < 60; ups++) {
+      if (g.state().window === null) g.debugLevelUp();
+      const w = g.state().window;
+      if (w === null) continue;
+      const raft = w.cards.findIndex((c) => c.id === 'raft' && c.available);
+      if (raft >= 0) {
+        if (!g.command.takeCard(raft)) throw new Error('«Плот» не взят');
+        if (cells === 3) return cells;
+        if (!g.command.placeCell(0, cells + 1)) throw new Error(`клетка (0, ${cells + 1}) не поставлена`);
+        cells++;
+      } else {
+        const i = w.cards.findIndex((c) => c.available);
+        if (!g.command.takeCard(i)) throw new Error('карточка не взята');
+      }
+    }
+    return cells;
+  });
+  expect(placed).toBe(3);
+  const s = await page.evaluate(() => window.__game!.state());
+  expect(s.build?.card).toBe('raft');
+  expect(s.build?.candidates).toContainEqual({ gx: 0, gy: 4 });
+
+  // Касание переносит призрак на (0, 4): у проекта desktop касаний нет — события синтетические.
+  await page.evaluate(() => {
+    const p = window.__game!.cellToScreen(0, 4);
+    const canvas = document.querySelector('#game canvas')!;
+    for (const type of ['pointerdown', 'pointerup']) {
+      canvas.dispatchEvent(new PointerEvent(type, {
+        pointerType: 'touch', pointerId: 12, isPrimary: true, clientX: p.x, clientY: p.y, bubbles: true,
+      }));
+    }
+  });
+  const place = page.getByTestId('place');
+  await expect(place).toBeVisible();
+  const btn = await boxOf(page, 'place');
+  const cell = await page.evaluate(() => {
+    const g = window.__game!;
+    const c = g.cellToScreen(0, 4);
+    const half = (g.cellToScreen(0, 5).y - c.y) / 2;
+    return { x: c.x - half, y: c.y - half, w: 2 * half, h: 2 * half };
+  });
+  const overlaps = btn.x < cell.x + cell.w && btn.x + btn.w > cell.x && btn.y < cell.y + cell.h && btn.y + btn.h > cell.y;
+  expect(overlaps).toBe(false);
+  const bar = await boxOf(page, 'xpbar');
+  expect(btn.y).toBeGreaterThanOrEqual(bar.y + bar.h);
+  await page.screenshot({ path: 'build/shots/m0-10_place_top_desktop.png' });
+
+  await page.mouse.click(btn.x + btn.w / 2, btn.y + btn.h / 2);
+  await expect.poll(() => page.evaluate(() => window.__game!.state().raft)).toContainEqual({ gx: 0, gy: 4 });
+});

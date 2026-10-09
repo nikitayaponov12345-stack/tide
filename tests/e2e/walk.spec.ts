@@ -109,3 +109,19 @@ test('телефон: подсказка про палец, шаг жестом 
   await page.screenshot({ path: 'build/shots/m0-07_walk_phone.png' });
   expect(errors).toEqual([]);
 });
+
+test('узкое окно ПК: подсказка уходит под полосу опыта (приёмка 09.10)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'сценарий ПК');
+  const errors = await secondCell(page);
+  await page.setViewportSize({ width: 520, height: 360 });
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const vp = page.viewportSize()!;
+  const r = await boxOf(page, 'walk-hint');
+  const bar = await boxOf(page, 'xpbar');
+  expect(bar.w).toBeGreaterThanOrEqual(280);
+  expect(r.y).toBeGreaterThanOrEqual(bar.y + bar.h);
+  apart(r, bar);
+  inside(r, vp.width, vp.height);
+  await page.screenshot({ path: 'build/shots/m0-10_hint_narrow_desktop.png' });
+  expect(errors).toEqual([]);
+});

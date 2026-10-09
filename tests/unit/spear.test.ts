@@ -161,3 +161,33 @@ describe('Spear', () => {
     expect(landing).toBe(Math.ceil((150 / FLIGHT) * 1000 / STEP_MS - 1e-9) - 1);
   });
 });
+
+describe('Spear (приёмка 09.10)', () => {
+  it('моряк не в центре: полёт и круг дальности — от точки моряка (приёмка 09.10)', () => {
+    const { spear, sailor, raft } = setup();
+    raft.add(1, 0);
+    expect(sailor.move(1, 0, raft)).toBe(true);
+    const sx = sailor.x;
+    const sy = sailor.y;
+    expect(sx).not.toBe(0);
+    const t = new FakeTargets();
+    expect(spear.throwTo(sx + 1000, sy)).toBe(true);
+    spear.step(STEP_MS, t);
+    expect(spear.x).toBeCloseTo(sx + (FLIGHT * STEP_MS) / 1000, 6);
+    run(spear, t, STEP_MS, () => spear.state === 'flying');
+    expect(t.calls.length).toBe(1);
+    expect(t.calls[0]!.x).toBeCloseTo(sx + TIER.throwRange, 6);
+    expect(t.calls[0]!.y).toBeCloseTo(sy, 6);
+  });
+
+  it('остаток шага падения уходит на возврат (приёмка 09.10)', () => {
+    const { spear } = setup();
+    const t = new FakeTargets();
+    spear.throwTo(150, 0);
+    const hits = spear.step((150 / FLIGHT) * 1000 + 10, t);
+    expect(hits.length).toBe(1);
+    expect(t.calls.length).toBe(1);
+    expect(spear.state).toBe('returning');
+    expect(spear.x).toBeCloseTo(150 - (RETURN * 10) / 1000, 6);
+  });
+});

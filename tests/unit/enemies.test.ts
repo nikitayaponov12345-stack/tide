@@ -6,7 +6,8 @@ import { Raft } from '../../src/core/raft';
 import { Rng } from '../../src/core/rng';
 import { Stats } from '../../src/core/stats';
 import { World } from '../../src/core/world';
-import { DATA } from '../../src/data';
+import { loadTables } from '../../src/core/data/tables';
+import { DATA, RAW } from '../../src/data';
 
 const HALF = { halfW: 640, halfH: 360 };
 const CRAB = DATA.enemies.find((e) => e.id === DATA.location('lagoon').enemyId)!;
@@ -228,5 +229,36 @@ describe('Enemies: прочность, урон, добыча', () => {
     g.debugSpawnEnemy();
     expect(g.enemies.list).toEqual([]);
     expect(g.spearOwned).toBe(false);
+  });
+});
+
+describe('Enemies (приёмка 09.10)', () => {
+  it('цель при равенстве расстояний — первая такая клетка в raft.cells (приёмка 09.10)', () => {
+    const { enemies, raft } = env();
+    raft.add(1, 0);
+    raft.add(-1, 0);
+    expect(raft.cells.map((c) => [c.gx, c.gy])).toEqual([[0, 0], [1, 0], [-1, 0]]);
+    const e = enemies.spawnNow({ raft, level: 1, ready: false }, { x: 0, y: -1000 })!;
+    expect([e.targetGx, e.targetGy]).toEqual([1, 0]);
+  });
+
+  it('сила локации 2: прочность × 2, добыча — клешня на каждые 2 снятой прочности (приёмка 09.10)', () => {
+    const from = 'lagoon,1,loc.lagoon,1,1,';
+    expect(RAW.locations).toContain(from);
+    const data = loadTables({ ...RAW, locations: RAW.locations.replace(from, 'lagoon,1,loc.lagoon,1,2,') });
+    expect(data.location('lagoon').enemyHpMult).toBe(2);
+    const world = new World({ ...HALF, speedMult: 1, locationId: 'lagoon', level: 1 }, data, new Rng(1));
+    const stats = new Stats();
+    const enemies = new Enemies(data, 'lagoon', new Rng(3), world, stats);
+    const raft = new Raft(data);
+    const e = enemies.spawnNow({ raft, level: 1, ready: false }, { x: 300, y: 0 })!;
+    const hp = e.hp;
+    expect(hp % 2).toBe(0);
+    const row = data.enemyHp[0]!;
+    expect(hp / 2).toBeGreaterThanOrEqual(Number(row.hp_min));
+    expect(hp / 2).toBeLessThanOrEqual(Number(row.hp_max));
+    for (let i = 0; i < hp && enemies.list.includes(e); i++) enemies.hit(300, 0, 0, 1);
+    expect(enemies.list).not.toContain(e);
+    expect(stats.lootDropped).toBe(hp / 2);
   });
 });

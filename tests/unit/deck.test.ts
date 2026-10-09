@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CardKind } from '../../src/core/data/tables';
 import { Deck, NEED_FREE_CELL, type DeckContext, type OfferCard } from '../../src/core/deck';
 import { Rng } from '../../src/core/rng';
-import { DATA } from '../../src/data';
+import { loadTables } from '../../src/core/data/tables';
+import { DATA, RAW } from '../../src/data';
 
 const M0: CardKind[] = ['raft', 'sailor_upgrade'];
 const ALL: CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
@@ -156,5 +157,37 @@ describe('Deck', () => {
   it('неизвестное requires — ошибка', () => {
     const data = { ...DATA, cards: [{ ...card('net_wider'), requires: 'moon_phase' }] };
     expect(() => new Deck(data, LOC, new Rng(1), M0).offer(5, ctx())).toThrow(/moon_phase/);
+  });
+});
+
+describe('Deck (приёмка 09.10)', () => {
+  it('принудительная карточка — вместо последней и без бросков Rng (приёмка 09.10)', () => {
+    const line = /^lagoon,level:4,net_tower\r?\n?/m;
+    expect(RAW.forcedCards).toMatch(line);
+    const plainData = loadTables({ ...RAW, forcedCards: RAW.forcedCards.replace(line, '') });
+    expect(plainData.forcedCards.some((f) => f.location === LOC && f.trigger === 'level:4')).toBe(false);
+    let replaced = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const rngPlain = new Rng(seed);
+      const rngForced = new Rng(seed);
+      const plain = new Deck(plainData, LOC, rngPlain, ALL).offer(4, ctx());
+      const forced = new Deck(DATA, LOC, rngForced, ALL).offer(4, ctx());
+      expect(rngForced.next(), `сид ${seed}`).toBe(rngPlain.next());
+      if (ids(plain).includes('net_tower')) {
+        expect(forced, `сид ${seed}`).toEqual(plain);
+      } else {
+        replaced++;
+        expect(ids(forced), `сид ${seed}`).toEqual([...ids(plain).slice(0, -1), 'net_tower']);
+        expect(forced.slice(0, -1)).toEqual(plain.slice(0, -1));
+      }
+    }
+    expect(replaced).toBeGreaterThan(0);
+  });
+
+  it('requires level:N — с уровня N, не раньше (приёмка 09.10)', () => {
+    expect(card('whirlpool').requires).toBe('level:6');
+    const d = deck(ALL, 6);
+    expect(seen(d, 5, ctx(), 'whirlpool')).toBe(0);
+    expect(seen(d, 6, ctx(), 'whirlpool')).toBeGreaterThan(0);
   });
 });
