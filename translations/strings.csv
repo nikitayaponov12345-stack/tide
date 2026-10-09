@@ -47,8 +47,6 @@ card.pull_stronger,Тяга сильнее,Stronger Pull
 card.pull_stronger.desc,Тяга +25 %,Pull +25%
 card.raft,Плот,Raft
 card.raft.desc,+1 клетка плота,+1 raft tile
-card.sailor_stash,Запас моряка,Sailor’s Stash
-card.sailor_stash.desc,+20 % опыта до следующего уровня,+20% XP towards the next level
 card.spear_stronger,Копьё сильнее,Stronger Spear
 card.spear_stronger.desc,Урон копья +1,Spear damage +1
 card.spear_tower,Копейная башня,Spear Tower
@@ -108,18 +106,6 @@ ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place
 ui.resume,Продолжить,Resume
-ui.scheme,Схема,Scheme
-ui.scheme.a,А — классика,A — classic
-ui.scheme.b,Б — автотяга,B — auto-pull
-ui.scheme.c,В — трал,C — trawl
-ui.scheme.d,Г — рогатка,D — slingshot
-ui.summary,Итоги пробы,Test summary
-ui.summary.again,Ещё раз,Again
-ui.summary.empty,Пустых бросков,Empty throws
-ui.summary.items,Предметов на бросок,Items per throw
-ui.summary.taps,Нажатий в минуту,Taps per minute
-ui.summary.throws,Бросков в минуту,Throws per minute
-ui.summary.xp,Опыта в минуту,XP per minute
 ui.take,Взять,Take
 weapon.double_spear,Двойное копьё,Double Spear
 weapon.harpoon,Гарпун,Harpoon

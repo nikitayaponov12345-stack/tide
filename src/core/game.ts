@@ -1,17 +1,19 @@
 import type { Tables } from './data/tables';
-import { Net, type ThrowOptions } from './net';
+import { Net } from './net';
 import { Progression } from './progression';
 import { Raft } from './raft';
 import { Rng } from './rng';
+import { Sailor } from './sailor';
 import { Stats } from './stats';
 import { World } from './world';
 
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
 
-/** Ядро целиком: мир, плот, сеть моряка, прогрессия, счётчики и команды ввода. */
+/** Ядро целиком: мир, плот, моряк, его сеть, прогрессия, счётчики и команды ввода. */
 export class Game {
   readonly world: World;
   readonly raft: Raft;
+  readonly sailor: Sailor;
   readonly net: Net;
   readonly progression: Progression;
   readonly stats = new Stats();
@@ -24,15 +26,16 @@ export class Game {
       new Rng(cfg.seed),
     );
     this.raft = new Raft(data);
+    this.sailor = new Sailor(data);
     const tier = data.sailorTier(loc.order);
-    this.net = new Net(data, { radius: tier.netRadius, capacity: tier.netCapacity, range: tier.throwRange, pull: tier.pull });
+    this.net = new Net(data, { radius: tier.netRadius, capacity: tier.netCapacity, range: tier.throwRange, pull: tier.pull }, this.sailor);
     this.progression = new Progression(data, loc.xpMult);
   }
 
   step(dtMs: number): void {
     this.stats.gameMs += dtMs;
     this.world.step(dtMs);
-    const caught = this.net.step(dtMs, this.world, this.raft);
+    const caught = this.net.step(dtMs, this.world);
     if (caught) {
       this.progression.addCatch(caught, this.world.timeMs);
       this.stats.itemsCaught += caught.length;
@@ -42,34 +45,18 @@ export class Game {
     if (this.world.level !== this.progression.level) this.world.setLevel(this.progression.level);
   }
 
-  throwTo(x: number, y: number, opts: ThrowOptions): boolean {
-    const ok = this.net.throwTo(x, y, opts);
+  throwTo(x: number, y: number): boolean {
+    const ok = this.net.throwTo(x, y);
     if (ok) this.stats.throws++;
     return ok;
   }
 
-  setPull(on: boolean, mult?: number): void {
-    this.net.setPull(on, mult);
-  }
-
-  setFollow(p: { x: number; y: number } | null): void {
-    this.net.setFollow(p);
+  setPull(on: boolean): void {
+    this.net.setPull(on);
   }
 
   noteTap(): void {
     this.stats.taps++;
-  }
-
-  /**
-   * Новая проба схемы управления. Порядок важен: уровень мира — до засева, иначе поле засеется по старому уровню.
-   * Rng не пересоздаётся: каждая проба начинается с нового поля.
-   */
-  resetTrial(): void {
-    this.progression.reset();
-    this.world.setLevel(1);
-    this.world.reset();
-    this.net.reset();
-    this.stats.reset();
   }
 
   /** Отладка: уровень прогрессии и потока. */

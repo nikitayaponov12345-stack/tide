@@ -15,7 +15,6 @@ crane_faster,building_upgrade,crane,pause_s,-0.2,mul,2,,has:crane,card.crane_fas
 lighthouse_wider,building_upgrade,lighthouse,radius,0.25,mul,2,,has:lighthouse,card.lighthouse_wider,card.lighthouse_wider.desc
 net_wider,sailor_upgrade,sailor,net_radius,6,add,3,,,card.net_wider,card.net_wider.desc
 net_bigger,sailor_upgrade,sailor,net_capacity,3,add,3,,,card.net_bigger,card.net_bigger.desc
-throw_farther,sailor_upgrade,sailor,throw_range,40,add,3,,,card.throw_farther,card.throw_farther.desc
+throw_farther,sailor_upgrade,sailor,throw_range,40,add,13,,,card.throw_farther,card.throw_farther.desc
 pull_stronger,sailor_upgrade,sailor,pull,0.25,mul,2,,,card.pull_stronger,card.pull_stronger.desc
 spear_stronger,sailor_upgrade,sailor,spear_damage,1,add,2,,spear_owned,card.spear_stronger,card.spear_stronger.desc
-sailor_stash,fallback,progression,xp_to_next_share,0.2,add,,,,card.sailor_stash,card.sailor_stash.desc

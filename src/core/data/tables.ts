@@ -18,7 +18,7 @@ export interface SailorTier {
   tier: number; netRadius: number; netCapacity: number; throwRange: number; pull: number;
   spearDamage: number; spearCount: number; weaponKey: string;
 }
-export type CardKind = 'raft' | 'building' | 'building_upgrade' | 'sailor_upgrade' | 'fallback';
+export type CardKind = 'raft' | 'building' | 'building_upgrade' | 'sailor_upgrade';
 export interface CardRow {
   id: string; kind: CardKind; target: string;
   stat: string | null; value: number | null; mode: 'add' | 'mul' | 'set' | null;
@@ -143,7 +143,7 @@ function read(raw: RawTables, key: keyof RawTables): Row[] {
   });
 }
 
-const CARD_KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade', 'fallback'];
+const CARD_KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
 const MODES = ['add', 'mul', 'set'] as const;
 
 export function loadTables(raw: RawTables): Tables {

@@ -1,20 +1,17 @@
 import './debug';
 import { ROLES, type Role } from './core/data/tables';
 import { Game } from './core/game';
-import { summarize } from './core/stats';
 import { DATA } from './data';
-import { Control, schemeFromSearch } from './game/input/control';
+import { Control } from './game/input/control';
 import { PointerInput } from './game/input/pointer';
-import { SchemeD, nextScheme, type SchemeId } from './game/input/schemes';
 import { DESIGN, worldToScreen, type Layout } from './game/layout';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
-import { SummaryWindow } from './ui/summary';
 
-const VERSION = '0.0.2';
+const VERSION = '0.0.3';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -37,7 +34,7 @@ async function boot(): Promise<void> {
   await stage.init(document.getElementById('game')!);
 
   const game = new Game(DATA, { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED });
-  const { world, net, progression, stats } = game;
+  const { world, net, progression, stats, sailor } = game;
   const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx: DATA.num('cell_px') });
   view.build(stage.layout);
   stage.onLayout = (layout) => {
@@ -57,46 +54,21 @@ async function boot(): Promise<void> {
   }
 
   const text = (key: string): string => DATA.text(key, lang);
-  const schemeName = (id: SchemeId): string => text(`ui.scheme.${id}`);
-  const schemeLabel = (id: SchemeId): string => `${text('ui.scheme')}: ${schemeName(id)}`;
 
   const ui = document.getElementById('ui')!;
   const hud = new Hud(ui, text);
-  // Обработчики ниже вызываются только после создания control и input.
-  const overlay = new Overlay(ui, { onScheme: () => control.next(), onSummary: () => control.openSummary() });
-  const summaryWindow = new SummaryWindow(ui, text, lang);
-  const control: Control = new Control(game, DATA, platform, {
-    scheme: (s) => {
-      input.setScheme(s);
-      overlay.setSchemeLabel(schemeLabel(s.id));
-    },
-    summary: (sum) => {
-      input.enabled = sum === null;
-      if (sum === null) {
-        summaryWindow.hide();
-        return;
-      }
-      const id = control.scheme.id;
-      summaryWindow.show(sum, {
-        scheme: schemeLabel(id),
-        nextLabel: schemeName(nextScheme(id)),
-        onAgain: () => control.restart(),
-        onNext: () => control.next(),
-      });
-    },
-  }, schemeFromSearch(location.search));
-  const input = new PointerInput(stage.app.canvas, game, control.scheme, () => stage.layout);
-  overlay.setSchemeLabel(schemeLabel(control.scheme.id));
+  const overlay = new Overlay(ui);
+  const control = new Control(game, platform);
+  new PointerInput(stage.app.canvas, game, () => stage.layout);
 
   stage.app.ticker.add((ticker) => {
     control.frame(ticker.deltaMS);
-    view.sync(game, control.scheme instanceof SchemeD ? control.scheme.aim() : null);
+    view.sync(game);
     hud.update(game, stage.layout);
     overlay.update(
       performance.now(),
-      `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · схема ${control.scheme.id} · уровень ${progression.level}` +
-        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}` +
-        ` · проба ${Math.ceil(control.trialLeftMs / 1000)} с`,
+      `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
+        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}`,
     );
   });
 
@@ -128,16 +100,11 @@ async function boot(): Promise<void> {
         capacity: net.netParams.capacity, range: net.netParams.range,
       },
       stats: { ...stats },
-      scheme: control.scheme.id,
-      trialMs: control.trialLeftMs,
+      sailor: { gx: sailor.gx, gy: sailor.gy, x: sailor.x, y: sailor.y },
     }),
-    setScheme: (id) => control.restart(id),
-    summary: () => summarize(stats),
-    openSummary: () => control.openSummary(),
     command: {
-      throwTo: (x, y, autoPullAfterMs = null) => game.throwTo(x, y, { autoPullAfterMs }),
-      setPull: (on, mult) => game.setPull(on, mult),
-      setFollow: (p) => game.setFollow(p),
+      throwTo: (x, y) => game.throwTo(x, y),
+      setPull: (on) => game.setPull(on),
     },
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),

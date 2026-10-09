@@ -42,11 +42,6 @@
         align-items: flex-start;
         gap: 6px;
       }
-      #ui .debug-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
       #ui button {
         pointer-events: auto;
         font: inherit;
@@ -62,58 +57,6 @@
       #ui button:disabled {
         opacity: 0.5;
         cursor: default;
-      }
-      #ui .summary-shade {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.6);
-        pointer-events: auto;
-      }
-      #ui .summary-shade[hidden] {
-        display: none;
-      }
-      #ui .summary {
-        box-sizing: border-box;
-        width: min(420px, calc(100% - 32px));
-        max-height: calc(100% - 32px);
-        overflow: auto;
-        padding: 16px;
-        border-radius: 10px;
-        background: #12384c;
-        border: 2px solid rgba(255, 255, 255, 0.7);
-      }
-      #ui .summary h2 {
-        margin: 0 0 4px;
-        font-size: 22px;
-      }
-      #ui .summary-scheme {
-        margin: 0 0 10px;
-        opacity: 0.85;
-      }
-      #ui .summary table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 16px;
-      }
-      #ui .summary td {
-        padding: 4px 0;
-      }
-      #ui .summary td:last-child {
-        text-align: right;
-        font-weight: 700;
-      }
-      #ui .summary-buttons {
-        display: flex;
-        gap: 8px;
-        margin-top: 14px;
-      }
-      #ui .summary-buttons button {
-        flex: 1;
-        padding: 12px 8px;
-        font-size: 16px;
       }
       #ui .hud {
         padding: 4px 8px;

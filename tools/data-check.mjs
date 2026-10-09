@@ -135,11 +135,11 @@ const needKey = (r, col, optional = false) => {
 // ---------- constants ----------
 unique(T.constants, (r) => r.key, 'data/constants.csv');
 const C = Object.fromEntries(T.constants.map((r) => [r.key, num(r, 'value')]));
-const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'scheme_b_autopull_ms', 'scheme_b_hold_mult', 'tap_enemy_tolerance', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade'];
+const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'sailor_box_px', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade'];
 for (const k of needConst) if (!(k in C)) err(`data/constants.csv: нет ключа ${k}`);
 if (C.item_speed_min > C.item_speed_max) err('data/constants.csv: item_speed_min больше item_speed_max');
 if (C.net_pull_min > C.net_pull_max) err('data/constants.csv: net_pull_min больше net_pull_max');
-if (C.raft_grid % 2 !== 1) err('data/constants.csv: raft_grid должен быть нечётным — моряк в центральной клетке');
+if (C.raft_grid % 2 !== 1) err('data/constants.csv: raft_grid должен быть нечётным — моряк начинает в центральной клетке');
 
 // ---------- levels ----------
 const lv = T.levels.map((r) => ({ L: num(r, 'level', { min: 1, int: true }), xp: num(r, 'xp_step', { min: 0, int: true }), flow: num(r, 'flow_per_s', { min: 0.1 }), r }));
@@ -236,7 +236,7 @@ for (const r of T.locations) for (const b of r.new_buildings.split('|').filter(B
 const cardIds = unique(T.cards, (r) => r.id, 'data/cards.csv');
 const SAILOR_STATS = ['net_radius', 'net_capacity', 'throw_range', 'pull', 'spear_damage'];
 for (const r of T.cards) {
-  oneOf(r, 'kind', ['raft', 'building', 'building_upgrade', 'sailor_upgrade', 'fallback']);
+  oneOf(r, 'kind', ['raft', 'building', 'building_upgrade', 'sailor_upgrade']);
   needKey(r, 'name_key');
   needKey(r, 'desc_key');
   if (r.kind === 'building' && !buildingIds.has(r.target)) err(`${where(r)}: постройки «${r.target}» нет`);
@@ -248,8 +248,7 @@ for (const r of T.cards) {
     if (r.target !== 'sailor') err(`${where(r)}: target улучшения моряка — sailor`);
     if (!SAILOR_STATS.includes(r.stat)) err(`${where(r)}: показателя моряка «${r.stat}» нет`);
   }
-  if (r.kind === 'fallback' && r.stat !== 'xp_to_next_share') err(`${where(r)}: запасная карточка — stat xp_to_next_share`);
-  if (r.kind.endsWith('upgrade') || r.kind === 'raft' || r.kind === 'fallback') {
+  if (r.kind.endsWith('upgrade') || r.kind === 'raft') {
     num(r, 'value');
     oneOf(r, 'mode', ['add', 'mul', 'set']);
   }

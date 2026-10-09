@@ -1,18 +1,17 @@
-import { TIME_EPS } from './clock';
 import type { Role, Tables } from './data/tables';
-import type { Raft } from './raft';
+import type { Sailor } from './sailor';
 import type { World } from './world';
 
-export type NetState = 'ready' | 'flying' | 'lying' | 'pulling' | 'following';
+export type NetState = 'ready' | 'flying' | 'lying' | 'pulling';
 export interface NetParams { radius: number; capacity: number; range: number; pull: number }  // из sailor.csv (ярус 1) и позже карточек
 export interface CaughtItem { kind: string; role: Role; xp: number; weight: number; x: number; y: number }  // xp — Item.xp (без силы локации)
-export interface ThrowOptions { autoPullAfterMs: number | null }   // null — тянуть только по удержанию (схема А)
 
 type Point = { x: number; y: number };
 
 /**
- * Сеть моряка: бросок, полёт с замедлением, ловля, тяга к плоту, ведение за точкой.
- * Команды (удержание, ведение) запоминаются как состояние; что из них следует, решает step.
+ * Сеть моряка: бросок от моряка, полёт с замедлением, ловля, тяга к моряку удержанием.
+ * Удержание запоминается как состояние; что из него следует, решает step.
+ * Сеть забирается, когда касается квадрата моряка, — и тягой, и упав у него.
  */
 export class Net {
   state: NetState = 'ready';
@@ -32,22 +31,20 @@ export class Net {
   private toY = 0;
   private path = 0;
   private done = 0;
-  // команды и таймеры
+  /** Удержание включено (в том числе в полёте — тогда упавшая сеть сразу тянется). */
   private hold = false;
-  private holdMult = 1;
-  private selfPull = false;
-  /** Просьба ведения, пришедшая во время полёта: точка, null — «возвращайся сама», undefined — просьбы нет. */
-  private pendingFollow: Point | null | undefined = undefined;
-  private followPt: Point = { x: 0, y: 0 };
-  private autoPullAfterMs: number | null = null;
-  private sinceLandMs = 0;
 
-  constructor(data: Tables, params: NetParams) {
+  constructor(
+    data: Tables,
+    params: NetParams,
+    private readonly sailor: Sailor,
+  ) {
     this.params = { ...params };
     this.flightSpeed = data.num('net_flight_speed');
     this.flightEnd = data.num('net_flight_end_mult');
     this.pullMin = data.num('net_pull_min');
     this.pullMax = data.num('net_pull_max');
+    this.reset();
   }
 
   get weight(): number {
@@ -62,72 +59,42 @@ export class Net {
     this.params = { ...p };
   }
 
-  /** Скорость тяги с множителем mult при текущем улове, точек в секунду. */
-  pullSpeed(mult = 1): number {
-    const v = (this.params.pull * mult) / (1 + this.weight);
+  /** Скорость тяги при текущем улове, точек в секунду. */
+  pullSpeed(): number {
+    const v = this.params.pull / (1 + this.weight);
     return Math.min(this.pullMax, Math.max(this.pullMin, v));
   }
 
-  throwTo(x: number, y: number, opts: ThrowOptions): boolean {
+  /** Бросок от точки моряка; точка дальше range переносится на край круга дальности. */
+  throwTo(x: number, y: number): boolean {
     if (this.state !== 'ready') return false;
     const t = this.clampToRange(x, y);
-    this.fromX = this.x = 0;
-    this.fromY = this.y = 0;
+    this.fromX = this.x = this.sailor.x;
+    this.fromY = this.y = this.sailor.y;
     this.toX = t.x;
     this.toY = t.y;
-    this.path = Math.hypot(t.x, t.y);
+    this.path = Math.hypot(t.x - this.fromX, t.y - this.fromY);
     this.done = 0;
-    this.pendingFollow = undefined;
-    this.selfPull = false;
-    this.autoPullAfterMs = opts.autoPullAfterMs;
-    this.sinceLandMs = 0;
     this.state = 'flying';
     return true;
   }
 
-  setPull(on: boolean, mult = 1): void {
+  setPull(on: boolean): void {
     if (this.state === 'ready') return;
     this.hold = on;
-    this.holdMult = mult;
     if (on && this.state === 'lying') this.state = 'pulling';
-    else if (!on && this.state === 'pulling' && !this.selfPull) this.state = 'lying';
+    else if (!on && this.state === 'pulling') this.state = 'lying';
   }
 
-  setFollow(p: Point | null): void {
-    if (this.state === 'ready') return;
-    const target = p === null ? null : this.clampToRange(p.x, p.y);
-    if (this.state === 'flying') {
-      this.pendingFollow = target;
-    } else if (target === null) {
-      this.selfPull = true;
-      this.state = 'pulling';
-    } else {
-      this.followPt = target;
-      this.state = 'following';
-    }
-  }
-
-  /** Шаг сети: полёт или движение → ловля → проверка возврата. Не null — сеть вернулась с уловом. */
-  step(dtMs: number, world: World, raft: Raft): CaughtItem[] | null {
+  /** Шаг сети: полёт или тяга → ловля → касание моряка. Не null — сеть забрана с уловом. */
+  step(dtMs: number, world: World): CaughtItem[] | null {
     if (this.state === 'ready') return null;
     const dt = dtMs / 1000;
-    if (this.state === 'flying') {
-      this.fly(dt);
-    } else {
-      this.sinceLandMs += dtMs;
-      if (this.autoPullAfterMs !== null && this.sinceLandMs + TIME_EPS >= this.autoPullAfterMs
-        && (this.state === 'lying' || this.state === 'pulling')) {
-        this.selfPull = true;
-        this.state = 'pulling';
-      }
-      if (this.state === 'pulling') this.moveTo(0, 0, this.pullSpeed(this.hold ? this.holdMult : 1) * dt);
-      else if (this.state === 'following') this.moveTo(this.followPt.x, this.followPt.y, this.pullSpeed(1) * dt);
-    }
+    if (this.state === 'flying') this.fly(dt);
+    else if (this.state === 'pulling') this.moveTo(this.sailor.x, this.sailor.y, this.pullSpeed() * dt);
     if (this.state === 'flying') return null;
     this.catchItems(world);
-    if ((this.state === 'pulling' || this.state === 'following') && raft.touches(this.x, this.y, this.params.radius)) {
-      return this.finish();
-    }
+    if (this.sailor.touches(this.x, this.y, this.params.radius)) return this.finish();
     return null;
   }
 
@@ -154,18 +121,7 @@ export class Net {
   }
 
   private land(): void {
-    this.sinceLandMs = 0;
-    const pf = this.pendingFollow;
-    this.pendingFollow = undefined;
-    if (pf) {
-      this.followPt = pf;
-      this.state = 'following';
-    } else if (pf === null) {
-      this.selfPull = true;
-      this.state = 'pulling';
-    } else {
-      this.state = this.hold ? 'pulling' : 'lying';
-    }
+    this.state = this.hold ? 'pulling' : 'lying';
   }
 
   private moveTo(tx: number, ty: number, dist: number): void {
@@ -201,23 +157,21 @@ export class Net {
     return out;
   }
 
-  /** Сеть у моряка: ready в (0, 0), улов пуст, удержание, тяга «сама» и запомненные просьбы сброшены. */
+  /** Сеть у моряка: ready в его точке, улов пуст, удержание сброшено. */
   reset(): void {
     this.caught.length = 0;
     this.state = 'ready';
-    this.x = 0;
-    this.y = 0;
+    this.x = this.sailor.x;
+    this.y = this.sailor.y;
     this.hold = false;
-    this.holdMult = 1;
-    this.selfPull = false;
-    this.pendingFollow = undefined;
-    this.autoPullAfterMs = null;
-    this.sinceLandMs = 0;
   }
 
+  /** Точка в круге дальности вокруг моряка: дальше range — на его край. */
   private clampToRange(x: number, y: number): Point {
-    const d = Math.hypot(x, y);
+    const sx = this.sailor.x;
+    const sy = this.sailor.y;
+    const d = Math.hypot(x - sx, y - sy);
     const r = this.params.range;
-    return d > r ? { x: (x / d) * r, y: (y / d) * r } : { x, y };
+    return d > r ? { x: sx + ((x - sx) / d) * r, y: sy + ((y - sy) / d) * r } : { x, y };
   }
 }

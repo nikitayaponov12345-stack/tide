@@ -42,7 +42,7 @@ test('игра запускается и рисует сцену', async ({ page
   expect(errors).toEqual([]);
 });
 
-// Схема А мышью: щелчок по предмету бросает сеть, удержание тянет её к плоту, улов даёт опыт.
+// Мышью: щелчок по предмету бросает сеть, удержание тянет её к моряку, улов даёт опыт.
 test('сеть ловит и даёт опыт', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -78,5 +78,22 @@ test('сеть ловит и даёт опыт', async ({ page }, info) => {
     gotXp = s.xp > 0 || s.level > 1;
   }
   expect(gotXp).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+// Классическая схема на телефоне: касание по воде бросает сеть по отпусканию.
+test('касание бросает сеть по отпусканию', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'касание — только в раскладке телефона');
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+
+  await page.goto('/');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
+
+  const p = await page.evaluate(() => window.__game!.toScreen(100, -100));
+  await page.touchscreen.tap(p.x, p.y);
+  const s = await page.evaluate(() => window.__game!.state());
+  expect(s.stats.throws).toBe(1);
+  expect(s.net.state).not.toBe('ready');
   expect(errors).toEqual([]);
 });
