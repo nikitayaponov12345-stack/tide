@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Смоук-проверка собранной игры: `npm run e2e` (сначала `npm run build`).
 // PW_CHROMIUM — путь к своему Chromium, если браузер Playwright не скачан (на ноутбуке не нужен).
+// Браузер тестов рисует игру без видеокарты, силами процессора. Поэтому браузер один (workers: 1),
+// а у телефона плотность пикселей 1: на раскладку и нажатия она не влияет, а точек в кадре вчетверо меньше.
 const executablePath = process.env.PW_CHROMIUM || undefined;
 
 export default defineConfig({
@@ -9,6 +11,7 @@ export default defineConfig({
   outputDir: 'test-results',
   timeout: 30_000,
   retries: 0,
+  workers: 1,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:4173',
@@ -24,7 +27,7 @@ export default defineConfig({
     { name: 'desktop', use: { viewport: { width: 1280, height: 720 } } },
     {
       name: 'phone',
-      use: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 }, browserName: 'chromium' },
+      use: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, browserName: 'chromium' },
     },
   ],
 });
