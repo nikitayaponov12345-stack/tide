@@ -34,6 +34,8 @@ export class Game {
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
+  /** Сила локации: множитель опыта, тот же, что у Progression. */
+  private readonly xpMult: number;
   window: OfferWindow | null = null;
   build: { card: string } | null = null;
   /** Выбранный слот оружия. */
@@ -71,6 +73,7 @@ export class Game {
     this.spear.range = tier.throwRange;
     this.weaponKey = tier.weaponKey;
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
+    this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), M0_KINDS);
     this.walkHintDelayMs = data.num('walk_hint_delay_ms');
@@ -90,6 +93,7 @@ export class Game {
     if (caught) {
       this.progression.addCatch(caught, this.world.timeMs);
       this.stats.itemsCaught += caught.length;
+      for (const it of caught) this.stats.xpByRole[it.role] += it.xp * this.xpMult;
       if (caught.length === 0) this.stats.emptyThrows++;
       if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
     }

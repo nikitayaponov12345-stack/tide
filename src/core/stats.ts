@@ -1,3 +1,5 @@
+import { ROLES, type Role } from './data/tables';
+
 /** Счётчики для бота и отладки. Пишут Game и Enemies. */
 export class Stats {
   throws = 0;        // успешные throwTo
@@ -12,4 +14,6 @@ export class Stats {
   enemiesKilled = 0;
   enemiesEscaped = 0;
   lootDropped = 0;   // предметов-добычи выпало
+  /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
+  readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
 }

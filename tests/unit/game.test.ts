@@ -115,6 +115,23 @@ describe('Game: счётчики', () => {
     expect({ throws, emptyThrows, itemsCaught, taps }).toEqual({ throws: 1, emptyThrows: 1, itemsCaught: 0, taps: 1 });
     expect(gameMs).toBe(g.world.timeMs);
   });
+
+  it('xpByRole: опыт улова по ролям × сила локации в момент возврата сети, до прилёта значков', () => {
+    const g = new Game(DATA, CFG);
+    const target = nearest(g)!;
+    g.throwTo(target.x, target.y);
+    run(g, () => g.net.state === 'flying');
+    g.setPull(true);
+    run(g, () => g.net.state !== 'ready');
+    expect(g.stats.itemsCaught).toBeGreaterThan(0);
+    expect(g.stats.xpGained).toBe(0);
+    // На 1-м уровне в потоке только роль light1; значки улова уже × сила локации и ещё не прилетели.
+    const open = DATA.flowItems(CFG.locationId).filter((it) => it.unlockLevel !== null && it.unlockLevel <= 1);
+    expect(open.map((it) => it.role)).toEqual(['light1']);
+    const want = Object.fromEntries(Object.keys(g.stats.xpByRole).map((r) => [r, 0]));
+    want.light1 = g.progression.icons.reduce((sum, i) => sum + i.xp, 0);
+    expect(g.stats.xpByRole).toEqual(want);
+  });
 });
 
 describe('Game: окно выбора и стройка', () => {

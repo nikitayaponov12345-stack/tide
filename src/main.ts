@@ -17,7 +17,7 @@ import { Overlay } from './ui/overlay';
 import { PlaceButton } from './ui/place';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.6';
+const VERSION = '0.0.7';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -128,7 +128,7 @@ async function boot(): Promise<void> {
         state: net.state, x: net.x, y: net.y, caught: net.caught.length,
         capacity: net.netParams.capacity, range: net.netParams.range,
       },
-      stats: { ...stats },
+      stats: { ...stats, xpByRole: { ...stats.xpByRole } },
       sailor: { gx: sailor.gx, gy: sailor.gy, x: sailor.x, y: sailor.y },
       window: game.window && { level: game.window.level, cards: game.window.cards.map((c) => ({ ...c })) },
       build: game.build && { card: game.build.card, candidates: raft.candidates() },

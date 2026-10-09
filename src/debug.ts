@@ -37,6 +37,8 @@ export interface GameDebug {
     stats: {
       throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; steps: number; gameMs: number;
       spearThrows: number; spearHits: number; enemiesKilled: number; enemiesEscaped: number; lootDropped: number;
+      /** Опыт вернувшегося улова по ролям, × сила локации. */
+      xpByRole: Record<Role, number>;
     };
     /** Клетка моряка и её центр в координатах мира. */
     sailor: { gx: number; gy: number; x: number; y: number };
