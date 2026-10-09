@@ -17,6 +17,7 @@
 - `npm run test` — тесты Vitest (`tests/unit`).
 - `npm run build` — проверка типов, сборка в `dist/` и отчёт о размере (бюджет — 3 МБ сжатых данных).
 - `npm run e2e` — смоук Playwright по собранной игре в двух раскладках, снимки в `build/shots/`.
+- `npm run sim` — бот «человек» на ядре без браузера: ворота M0 и кривая темпа, отчёт в `build/sim/tempo.md` (около 30 с; в `npm run check` не входит).
 - `npm run check` — всё вместе. Перед отчётом по любой задаче он должен быть зелёным.
 - `npm run publish` — сборка по ссылке для телефона: отправляет `dist/` в открытый репозиторий `tide-play` (GitHub Pages). Запускает Никита; Claude Code проверяет только `npm run publish -- --dry-run`.
 
