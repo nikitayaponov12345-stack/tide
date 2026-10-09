@@ -50,6 +50,21 @@ export class Raft {
     return dealt;
   }
 
+  /** Ремонт клетки: прибавить прочность, не выше cellHp; ответ — сколько прибавлено. Прочность полная, нет клетки или amount ≤ 0 — 0. */
+  repair(gx: number, gy: number, amount: number): number {
+    const c = this.cell(gx, gy);
+    if (!c || !(amount > 0)) return 0;
+    const added = Math.min(amount, this.cellHp - c.hp);
+    if (!(added > 0)) return 0;
+    c.hp += added;
+    return added;
+  }
+
+  /** Есть клетка с прочностью меньше полной. */
+  damaged(): boolean {
+    return this.cells.some((c) => c.hp < this.cellHp);
+  }
+
   /** Степень вида: по четвертям cellHp. */
   stage(c: Cell): CellStage {
     if (c.hp > (this.cellHp * 3) / 4) return 0;

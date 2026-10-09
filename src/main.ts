@@ -20,9 +20,10 @@ import { Overlay } from './ui/overlay';
 import { PauseMenu } from './ui/pause';
 import { PlaceButton } from './ui/place';
 import { ResumePlaque } from './ui/plaque';
+import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.10';
+const VERSION = '0.0.11';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -105,6 +106,8 @@ async function boot(): Promise<void> {
       void platform.save(SAVE_KEY, '').then(() => location.reload());
     },
   });
+  // Затемнение паузы — поверх молотка (z-index); при окне выбора и в стройке молоток скрыт.
+  const repair = new RepairButton(ui, game, text);
   const cards = new CardWindow(ui, game, text);
   const cursor = new BuildCursor(cellPx);
   const place = new PlaceButton(ui, game, cursor, text);
@@ -152,6 +155,7 @@ async function boot(): Promise<void> {
     place.update(stage.layout, cellPx);
     hint.update(stage.layout);
     slots.update(stage.layout);
+    repair.update(stage.layout);
     plaque?.update(stage.layout, performance.now());
     overlay.update(
       performance.now(),
@@ -195,6 +199,7 @@ async function boot(): Promise<void> {
       raft: raft.cells.map((c) => ({ ...c })),
       walkHint: game.walkHint,
       menu: game.menu,
+      repair: game.repair,
       weapon: game.weapon,
       spearOwned: game.spearOwned,
       spear: { state: game.spear.state, x: game.spear.x, y: game.spear.y, damage: game.spear.damage },
@@ -207,6 +212,8 @@ async function boot(): Promise<void> {
       placeCell: (gx, gy) => game.placeCell(gx, gy),
       walk: (dx, dy) => game.walk(dx, dy),
       setWeapon: (w) => game.setWeapon(w),
+      setRepair: (on) => game.setRepair(on),
+      repairCell: (gx, gy) => game.repairCell(gx, gy),
     },
     debugLevelUp: () => game.debugLevelUp(),
     debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),

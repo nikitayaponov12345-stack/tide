@@ -8,10 +8,16 @@ export class BuildCursor {
 
   constructor(private readonly cellPx: number) {}
 
-  /** Точка мира → клетка сетки (без −0). */
+  /** Клетка сетки под точкой мира (без −0). */
+  cellAt(x: number, y: number): { gx: number; gy: number } {
+    return { gx: Math.round(x / this.cellPx) || 0, gy: Math.round(y / this.cellPx) || 0 };
+  }
+
+  /** Призрак — на клетку под точкой мира. */
   point(x: number, y: number, type: 'mouse' | 'touch' | 'pen'): void {
-    this.gx = Math.round(x / this.cellPx) || 0;
-    this.gy = Math.round(y / this.cellPx) || 0;
+    const c = this.cellAt(x, y);
+    this.gx = c.gx;
+    this.gy = c.gy;
     this.shown = true;
     this.byTouch = type !== 'mouse';
   }

@@ -19,6 +19,8 @@ const COUNTER_COLOR = { ok: 0x7bd88f, half: 0xffd166, full: 0xff6b6b };
 /** Клетка по степени вида raft.stage: целая, три степени темнее, разбитая — серая. */
 const RAFT_COLOR = [0xc58b4f, 0xa8743f, 0x8b5e32, 0x6e4a27, 0x8a8a8a] as const;
 const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
+/** Обводка повреждённых клеток в ремонте. */
+const REPAIR_STROKE = { width: 3, color: 0xffd166 } as const;
 /** Места для новой клетки в стройке — бледные. */
 const CANDIDATE_ALPHA = 0.2;
 const ENEMY_COLOR = 0xd62828;
@@ -36,7 +38,7 @@ export interface ViewOptions {
 }
 
 /**
- * Рабочая отрисовка: вода, плот (в стройке — места для клетки и призрак), моряк, круг дальности, предметы и добыча, враги с прочностью,
+ * Рабочая отрисовка: вода, плот (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
  * сеть и копьё с верёвкой, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
@@ -82,6 +84,7 @@ export class View {
     const p = net.netParams;
     this.raft.clear();
     for (const c of raft.cells) this.tile(this.raft, c.gx, c.gy).fill(RAFT_COLOR[raft.stage(c)]);
+    if (game.repair) for (const c of raft.cells) if (c.hp < raft.cellHp) this.tile(this.raft, c.gx, c.gy).stroke(REPAIR_STROKE);
     this.ghost.clear();
     if (game.build) {
       for (const c of raft.candidates()) this.tile(this.raft, c.gx, c.gy).fill({ color: 0xffffff, alpha: CANDIDATE_ALPHA });

@@ -112,6 +112,7 @@ ui.need_free_cell,Требуется свободный плот,Needs a free ra
 ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place
+ui.repair,Ремонт,Repair
 ui.resume,Продолжить,Resume
 ui.resume_plaque,{location} · {level} уровень,{location} · level {level}
 ui.slot.net,Сеть,Net

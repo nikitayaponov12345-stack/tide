@@ -39,6 +39,8 @@ export interface GameDebug {
       spearThrows: number; spearHits: number; enemiesKilled: number; enemiesEscaped: number; lootDropped: number;
       /** Укусы врагов (и по центральной, и по разбитой клетке) и снятая ими прочность клеток. */
       bites: number; cellDamage: number;
+      /** Нажатия в ремонте, прибавившие прочность. */
+      repairTaps: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -54,6 +56,8 @@ export interface GameDebug {
     walkHint: boolean;
     /** Открыто окно паузы. */
     menu: boolean;
+    /** Идёт ремонт. */
+    repair: boolean;
     /** Выбранный слот оружия и есть ли копьё (слоты видны). */
     weapon: Weapon;
     spearOwned: boolean;
@@ -72,6 +76,10 @@ export interface GameDebug {
     walk(dx: number, dy: number): boolean;
     /** Слот оружия; копья ещё нет → false. */
     setWeapon(w: Weapon): boolean;
+    /** Ремонт: выход — всегда; вход — при повреждённой клетке, без окна выбора, стройки и паузы. */
+    setRepair(on: boolean): boolean;
+    /** Нажатие в ремонте по клетке: +repair_per_tap, не выше полной. */
+    repairCell(gx: number, gy: number): boolean;
   };
   /** Опыт до следующего уровня сразу: окно открывается тут же. */
   debugLevelUp(): void;

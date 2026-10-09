@@ -48,6 +48,8 @@ export class Game {
   build: { card: string } | null = null;
   /** Открыто окно паузы. В снимок не входит: после загрузки игра идёт. */
   menu = false;
+  /** Режим ремонта: мир стоит, нажатия по клеткам чинят. В снимок не входит: после загрузки игра идёт. */
+  repair = false;
   /** Выбранный слот оружия. */
   weapon: Weapon = 'net';
   /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». */
@@ -64,6 +66,7 @@ export class Game {
   private readonly pending: number[] = [];
   private readonly walkHintDelayMs: number;
   private readonly walkHintMaxLevel: number;
+  private readonly repairPerTap: number;
   /** Удержание пальца: сеть тянется, только если выбран слот сети. */
   private hold = false;
 
@@ -88,6 +91,7 @@ export class Game {
     this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), M0_KINDS);
     this.walkHintDelayMs = data.num('walk_hint_delay_ms');
     this.walkHintMaxLevel = data.num('walk_hint_max_level');
+    this.repairPerTap = data.num('repair_per_tap');
   }
 
   /** Снимок партии: копии, дальнейшая игра его не меняет. */
@@ -128,14 +132,32 @@ export class Game {
     return g;
   }
 
-  /** Открыто окно выбора, идёт стройка или открыта пауза: мир стоит. */
+  /** Открыто окно выбора, идёт стройка, открыта пауза или идёт ремонт: мир стоит. */
   get paused(): boolean {
-    return this.window !== null || this.build !== null || this.menu;
+    return this.window !== null || this.build !== null || this.menu || this.repair;
   }
 
   /** Окно паузы. Уровень, набранный до неё, открывает окно на первом шаге после. */
   setMenu(on: boolean): void {
     this.menu = on;
+  }
+
+  /** Режим ремонта. Выход — всегда; вход — только при повреждённой клетке, без окна выбора, стройки и паузы, иначе false. */
+  setRepair(on: boolean): boolean {
+    if (on && (!this.raft.damaged() || this.window !== null || this.build !== null || this.menu)) return false;
+    this.repair = on;
+    return true;
+  }
+
+  /**
+   * Нажатие в ремонте по клетке (gx, gy): +repair_per_tap, не выше полной. Не ремонт, пауза или прибавить нечего → false.
+   * Когда у всех клеток полная прочность, ремонт закрывается сам.
+   */
+  repairCell(gx: number, gy: number): boolean {
+    if (!this.repair || this.menu || this.raft.repair(gx, gy, this.repairPerTap) === 0) return false;
+    this.stats.repairTaps++;
+    if (!this.raft.damaged()) this.repair = false;
+    return true;
   }
 
   step(dtMs: number): void {
