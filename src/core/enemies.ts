@@ -1,6 +1,6 @@
 import { TIME_EPS } from './clock';
 import type { ItemRow, Tables } from './data/tables';
-import type { Raft } from './raft';
+import { isIntact, type Raft } from './raft';
 import type { Rng } from './rng';
 import type { Stats } from './stats';
 import type { World } from './world';
@@ -18,12 +18,12 @@ export interface EnemiesContext { raft: Raft; level: number; ready: boolean }
 
 export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
 
-/** Повадка, которую знает M0: краб Лагуны идёт к клетке под водой. Укус — M1. */
+/** Повадка, которую знает M1: краб Лагуны идёт к клетке под водой и кусает её. */
 const WALK_UNDERWATER = 'walk_underwater';
 
 /**
- * Мелкие враги локации: появление по таймеру за краем поля, путь к самой дальней клетке, ожидание, уход,
- * урон копьём и добыча. Свой Rng (ARCHITECTURE, инвариант 3): добыча не сдвигает поток предметов мира.
+ * Мелкие враги локации: появление по таймеру за краем поля, путь к самой дальней целой клетке (мимо центральной),
+ * укус по приходу, ожидание, уход, урон копьём и добыча. Свой Rng (ARCHITECTURE, инвариант 3): добыча не сдвигает поток предметов мира.
  */
 export class Enemies {
   readonly list: Enemy[] = [];
@@ -37,6 +37,8 @@ export class Enemies {
   private readonly speed: number | null;
   private readonly loot: ItemRow | null;
   private readonly hpMult: number;
+  /** Укус: damage краба × сила урона локации. */
+  private readonly bite: number;
   private readonly radius: number;
   private readonly cellPx: number;
 
@@ -53,6 +55,7 @@ export class Enemies {
     this.speed = known ? Number(row.speed) : null;
     this.loot = known ? data.item(row.loot_item!) : null;
     this.hpMult = loc.enemyHpMult;
+    this.bite = known ? Number(row.damage) * loc.enemyDmgMult : 0;
     this.radius = data.num('enemy_radius_px');
     this.cellPx = data.num('cell_px');
   }
@@ -84,7 +87,7 @@ export class Enemies {
   /** Шаг: движение врагов → таймер появления; в шаг, когда условие стало выполнено, — первый враг. */
   step(dtMs: number, ctx: EnemiesContext): void {
     if (this.speed === null) return;
-    for (const e of [...this.list]) this.advance(e, dtMs);
+    for (const e of [...this.list]) this.advance(e, dtMs, ctx.raft);
     if (this.started) {
       // В M0 построек нет. Враг, появившийся внутри шага, проходит остаток шага.
       const interval = this.intervalMs(0);
@@ -92,7 +95,7 @@ export class Enemies {
       while (this.acc + TIME_EPS >= interval) {
         this.acc -= interval;
         const e = this.spawn(ctx, null);
-        if (this.acc > TIME_EPS) this.advance(e, this.acc);
+        if (this.acc > TIME_EPS) this.advance(e, this.acc, ctx.raft);
       }
     } else if (ctx.ready) {
       this.started = true;
@@ -127,7 +130,7 @@ export class Enemies {
     return out;
   }
 
-  /** Новый враг: случайный край за полем (или точка), цель — самая дальняя клетка, прочность по уровню. Броски: край, место, прочность. */
+  /** Новый враг: случайный край за полем (или точка), цель — самая дальняя целая клетка, кроме центральной, прочность по уровню. Броски: край, место, прочность. */
   private spawn(ctx: EnemiesContext, at: { x: number; y: number } | null): Enemy {
     let x: number;
     let y: number;
@@ -145,9 +148,11 @@ export class Enemies {
         y = this.rng.range(-halfH, halfH);
       }
     }
-    let target = ctx.raft.cells[0]!;
+    // Нет целых клеток, кроме центральной, — цель центральная (её укус не ранит).
+    let target = ctx.raft.cells.find((c) => c.gx === 0 && c.gy === 0)!;
     let best = -1;
     for (const c of ctx.raft.cells) {
+      if (!isIntact(c) || (c.gx === 0 && c.gy === 0)) continue;
       const d = Math.hypot(c.gx * this.cellPx - x, c.gy * this.cellPx - y);
       if (d > best) {
         best = d;
@@ -170,8 +175,8 @@ export class Enemies {
     return this.rng.int(Number(row.hp_min), Number(row.hp_max)) * this.hpMult;
   }
 
-  /** Время ms для врага: остаток уходит в следующую фазу. */
-  private advance(e: Enemy, ms: number): void {
+  /** Время ms для врага: остаток уходит в следующую фазу. raft — для укуса. */
+  private advance(e: Enemy, ms: number, raft: Raft): void {
     const speed = this.speed!;
     let t = ms;
     while (t > TIME_EPS) {
@@ -183,7 +188,9 @@ export class Enemies {
         if (need <= can) {
           this.moveToward(e, tx, ty, need);
           t -= (need / speed) * 1000;
-          // Здесь в M1 — укус клетки.
+          // Укус — один раз, по приходу; цель не меняется, даже если клетку разбили по дороге.
+          this.stats.bites++;
+          this.stats.cellDamage += raft.damage(e.targetGx, e.targetGy, this.bite);
           e.phase = 'wait';
           e.waitLeftMs = this.data.num('enemy_wait_ms');
         } else {

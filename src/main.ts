@@ -22,7 +22,7 @@ import { PlaceButton } from './ui/place';
 import { ResumePlaque } from './ui/plaque';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.9';
+const VERSION = '0.0.10';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -210,6 +210,7 @@ async function boot(): Promise<void> {
     },
     debugLevelUp: () => game.debugLevelUp(),
     debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
+    debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),

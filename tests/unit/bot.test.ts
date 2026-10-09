@@ -118,7 +118,7 @@ describe('HumanBot: окно и стройка', () => {
     expect(b.card).toBeNull();
     expect(b.ms).toBeGreaterThanOrEqual(HUMAN.buildMs[0]);
     expect(b.ms).toBeLessThan(HUMAN.buildMs[1]);
-    expect(g.raft.cells).toContainEqual({ gx: 0, gy: -1 });
+    expect(g.raft.cells).toContainEqual({ gx: 0, gy: -1, hp: DATA.num('cell_hp') });
     expect(g.paused).toBe(false);
   });
 

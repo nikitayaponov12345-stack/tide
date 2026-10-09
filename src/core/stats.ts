@@ -17,6 +17,8 @@ export class Stats {
   enemiesKilled = 0;
   enemiesEscaped = 0;
   lootDropped = 0;   // предметов-добычи выпало
+  bites = 0;         // укусы врагов, в том числе по центральной и по разбитой клетке
+  cellDamage = 0;    // прочности клеток снято укусами
   /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
   readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
 

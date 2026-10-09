@@ -37,6 +37,8 @@ export interface GameDebug {
     stats: {
       throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; steps: number; gameMs: number;
       spearThrows: number; spearHits: number; enemiesKilled: number; enemiesEscaped: number; lootDropped: number;
+      /** Укусы врагов (и по центральной, и по разбитой клетке) и снятая ими прочность клеток. */
+      bites: number; cellDamage: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -46,7 +48,8 @@ export interface GameDebug {
     window: null | { level: number; cards: Array<{ id: string; available: boolean; reason: string | null }> };
     /** Стройка: карточка и места для новой клетки. */
     build: null | { card: string; candidates: Array<{ gx: number; gy: number }> };
-    raft: Array<{ gx: number; gy: number }>;
+    /** Клетки плота с прочностью. */
+    raft: Array<{ gx: number; gy: number; hp: number }>;
     /** Подсказка о ходьбе видна (правило ядра Game.walkHint). */
     walkHint: boolean;
     /** Открыто окно паузы. */
@@ -65,7 +68,7 @@ export interface GameDebug {
     setPull(on: boolean): void;
     takeCard(i: number): boolean;
     placeCell(gx: number, gy: number): boolean;
-    /** Шаг моряка на соседнюю клетку по стороне. */
+    /** Шаг моряка на соседнюю клетку по стороне; клетка разбита → false. */
     walk(dx: number, dy: number): boolean;
     /** Слот оружия; копья ещё нет → false. */
     setWeapon(w: Weapon): boolean;
@@ -74,6 +77,8 @@ export interface GameDebug {
   debugLevelUp(): void;
   /** Краб сейчас, без условия и таймера (и на паузе); с точкой — в ней. Даёт копьё. */
   debugSpawnEnemy(x?: number, y?: number): void;
+  /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
+  debugDamageCell(gx: number, gy: number, amount: number): number;
   /** Центр клетки плота в координатах окна (CSS-пиксели). */
   cellToScreen(gx: number, gy: number): { x: number; y: number };
   /** Предметы в воде, координаты мира. */

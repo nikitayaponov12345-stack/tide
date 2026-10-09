@@ -1,5 +1,5 @@
 import type { Tables } from './data/tables';
-import type { Raft } from './raft';
+import { isIntact, type Raft } from './raft';
 
 /** Моряк: клетка плота и квадрат, которого касается сеть. Начинает в центральной клетке и ходит по плоту. */
 export class Sailor {
@@ -23,10 +23,11 @@ export class Sailor {
     return this.gy * this.cellPx;
   }
 
-  /** Шаг на соседнюю клетку по стороне; не по стороне или клетки нет → false. */
+  /** Шаг на соседнюю клетку по стороне; не по стороне, клетки нет или клетка разбита → false. С разбитой сойти можно. */
   move(dx: number, dy: number, raft: Raft): boolean {
     if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
-    if (!raft.has(this.gx + dx, this.gy + dy)) return false;
+    const to = raft.cell(this.gx + dx, this.gy + dy);
+    if (!to || !isIntact(to)) return false;
     this.gx += dx;
     this.gy += dy;
     return true;

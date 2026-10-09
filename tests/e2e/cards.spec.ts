@@ -103,7 +103,7 @@ test('окно выбора и стройка плота', async ({ page }, info
   await expect.poll(() => page.evaluate(() => window.__game!.state().raft.length)).toBe(2);
   const s = await page.evaluate(() => window.__game!.state());
   expect(s.build).toBeNull();
-  expect(s.raft).toContainEqual({ gx: 1, gy: 0 });
+  expect(s.raft).toContainEqual(expect.objectContaining({ gx: 1, gy: 0 }));
   await expect(page.getByTestId('place')).toBeHidden();
 
   // 3. Окно 3 уровня, затем окно 4 уровня из трёх карточек: ряд или стопка.
@@ -228,5 +228,5 @@ test('«Поставить» уходит наверх, если закрыла 
   await page.screenshot({ path: 'build/shots/m0-10_place_top_desktop.png' });
 
   await page.mouse.click(btn.x + btn.w / 2, btn.y + btn.h / 2);
-  await expect.poll(() => page.evaluate(() => window.__game!.state().raft)).toContainEqual({ gx: 0, gy: 4 });
+  await expect.poll(() => page.evaluate(() => window.__game!.state().raft)).toContainEqual(expect.objectContaining({ gx: 0, gy: 4 }));
 });

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { Raft } from '../../src/core/raft';
+import { isIntact, Raft } from '../../src/core/raft';
 import { DATA } from '../../src/data';
 
 const HALF = (DATA.num('raft_grid') - 1) / 2;
+const HP = DATA.num('cell_hp');
 
 describe('Raft', () => {
   it('одна центральная клетка; центр клетки — gx × cell_px', () => {
     const raft = new Raft(DATA);
     const cell = DATA.num('cell_px');
-    expect(raft.cells).toEqual([{ gx: 0, gy: 0 }]);
+    expect(raft.cells).toEqual([{ gx: 0, gy: 0, hp: HP }]);
     expect(raft.half).toBe(HALF);
     expect(raft.cellCenter({ gx: 2, gy: -1 })).toEqual({ x: 2 * cell, y: -cell });
   });
@@ -48,5 +49,66 @@ describe('Raft', () => {
     raft.add(0, 2);
     expect(raft.freeCells()).toBe(3);
     expect(raft.freeCells()).toBe(raft.cells.length);
+  });
+
+  it('центральная и новая клетка — cell_hp; cell — клетка или undefined', () => {
+    const raft = new Raft(DATA);
+    expect(raft.cellHp).toBe(HP);
+    raft.add(1, 0);
+    expect(raft.cell(0, 0)?.hp).toBe(HP);
+    expect(raft.cell(1, 0)).toEqual({ gx: 1, gy: 0, hp: HP });
+    expect(raft.cell(2, 0)).toBeUndefined();
+  });
+
+  it('damage: снимает и отвечает снятым, не ниже 0; разбитая, центральная и нет клетки — 0', () => {
+    const raft = new Raft(DATA);
+    raft.add(1, 0);
+    expect(raft.damage(1, 0, HP / 4)).toBe(HP / 4);
+    expect(raft.cell(1, 0)!.hp).toBe(HP - HP / 4);
+    expect(raft.damage(1, 0, 10 * HP)).toBe(HP - HP / 4);
+    expect(raft.cell(1, 0)!.hp).toBe(0);
+    expect(isIntact(raft.cell(1, 0)!)).toBe(false);
+    expect(raft.damage(1, 0, HP)).toBe(0);
+    expect(raft.cell(1, 0)!.hp).toBe(0);
+    expect(raft.damage(0, 0, HP)).toBe(0);
+    expect(raft.cell(0, 0)!.hp).toBe(HP);
+    expect(raft.damage(3, 3, HP)).toBe(0);
+    raft.add(-1, 0);
+    expect(raft.damage(-1, 0, 0)).toBe(0);
+    expect(raft.damage(-1, 0, -HP)).toBe(0);   // урон не лечит
+    expect(raft.cell(-1, 0)!.hp).toBe(HP);
+  });
+
+  it('stage — по четвертям cell_hp', () => {
+    const raft = new Raft(DATA);
+    const hps = [HP, 0.76 * HP, 0.75 * HP, 0.51 * HP, 0.5 * HP, 0.26 * HP, 0.25 * HP, 1, 0];
+    expect(hps.map((hp) => raft.stage({ gx: 0, gy: 0, hp }))).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4]);
+  });
+
+  it('freeCells — только целые; рядом с разбитой клеткой можно поставить новую', () => {
+    const raft = new Raft(DATA);
+    raft.add(1, 0);
+    raft.add(2, 0);
+    expect(raft.freeCells()).toBe(3);
+    raft.damage(2, 0, HP);
+    expect(raft.freeCells()).toBe(2);
+    expect(raft.canAdd(3, 0)).toBe(true);
+    expect(raft.candidates()).toContainEqual({ gx: 3, gy: 0 });
+    expect(raft.add(3, 0)).toBe(true);
+    expect(raft.cell(3, 0)!.hp).toBe(HP);
+  });
+
+  it('снимок → JSON → restore — та же прочность; клетка без hp — cell_hp', () => {
+    const raft = new Raft(DATA);
+    raft.add(1, 0);
+    raft.add(-1, 0);
+    raft.damage(1, 0, HP / 4);
+    raft.damage(-1, 0, HP);
+    const s = JSON.parse(JSON.stringify(raft.snapshot())) as ReturnType<Raft['snapshot']>;
+    const r = new Raft(DATA);
+    r.restore(s);
+    expect(r.cells).toEqual(raft.cells);
+    r.restore({ cells: [{ gx: 0, gy: 0 }, { gx: 1, gy: 0 }] });
+    expect(r.cells).toEqual([{ gx: 0, gy: 0, hp: HP }, { gx: 1, gy: 0, hp: HP }]);
   });
 });

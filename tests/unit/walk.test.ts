@@ -91,6 +91,29 @@ describe('Game.walk', () => {
   });
 });
 
+describe('Game.walk и разбитая клетка (M1-03)', () => {
+  const HP = DATA.num('cell_hp');
+
+  it('на разбитую клетку — false, моряк стоит', () => {
+    const g = twoCells();
+    expect(g.debugDamageCell(1, 0, HP)).toBe(HP);
+    expect(g.walk(1, 0)).toBe(false);
+    expect([g.sailor.gx, g.sailor.gy]).toEqual([0, 0]);
+    expect(g.stats.steps).toBe(0);
+  });
+
+  it('клетку разбили под моряком — он на ней и сходит на целую', () => {
+    const g = twoCells();
+    expect(g.walk(1, 0)).toBe(true);
+    g.debugDamageCell(1, 0, HP);
+    g.step(STEP_MS);
+    expect([g.sailor.gx, g.sailor.gy]).toEqual([1, 0]);
+    expect(g.walk(-1, 0)).toBe(true);
+    expect([g.sailor.gx, g.sailor.gy]).toEqual([0, 0]);
+    expect(g.walk(1, 0)).toBe(false);
+  });
+});
+
 describe('Game.walkHint', () => {
   it('до второй клетки — нет', () => {
     const g = new Game(DATA, CFG);

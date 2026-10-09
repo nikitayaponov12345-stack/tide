@@ -18,7 +18,7 @@ const load = (s: GameSnapshot, cfg: GameConfig = CFG): Game => Game.restore(DATA
 /**
  * Игрок теста без своей памяти: решает только по состоянию игры, поэтому после загрузки ведёт себя так же.
  * Окно — «Плот», если доступен, иначе первая доступная; стройка — первое место; шаг на вторую клетку;
- * краб при копье — копьём в краба, иначе сеть: ready — бросок в ближайший к центру предмет, lying — тянуть.
+ * краб, который уже укусил (не approach), при копье — копьём в него, иначе сеть: ready — бросок в ближайший к центру предмет, lying — тянуть.
  */
 function decide(g: Game): void {
   if (g.window) {
@@ -34,7 +34,8 @@ function decide(g: Game): void {
   }
   const side = g.raft.cells.find((c) => Math.abs(c.gx) + Math.abs(c.gy) === 1);
   if (side && g.sailor.gx === 0 && g.sailor.gy === 0) g.walk(side.gx, side.gy);
-  const crab = g.enemies.list[0];
+  // Краба по дороге не бьёт: иначе укусов в прогоне нет.
+  const crab = g.enemies.list.find((e) => e.phase !== 'approach');
   if (crab && g.spearOwned) {
     g.setWeapon('spear');
     if (g.spear.state === 'ready') g.throwTo(crab.x, crab.y);
@@ -73,6 +74,7 @@ const CASES: Record<string, (g: Game) => boolean> = {
   crab: (g) => g.enemies.list.length > 0,
   spearFlying: (g) => g.spear.state === 'flying',
   icons: (g) => g.progression.icons.length > 0,
+  cellHurt: (g) => g.raft.cells.some((c) => c.hp < g.raft.cellHp),
 };
 
 describe('Снимок партии', () => {
@@ -83,7 +85,7 @@ describe('Снимок партии', () => {
     expect(viaJson(load(s).snapshot())).toEqual(s);
   });
 
-  it('продолжение с записи в любом из семи случаев идёт так же, как прогон без перерыва', () => {
+  it('продолжение с записи в любом из восьми случаев идёт так же, как прогон без перерыва', () => {
     const g = new Game(DATA, CFG);
     const saves: Array<{ name: string; at: number; snap: GameSnapshot }> = [];
     for (let t = 0; t < RUN_TACTS; t++) {
@@ -100,6 +102,20 @@ describe('Снимок партии', () => {
       for (let t = at; t < RUN_TACTS; t++) tact(r);
       expect(viaJson(r.snapshot()), `${name}: к концу прогона`).toEqual(end);
     }
+  });
+
+  it('запись до M1-03: клетки без hp после restore целые', () => {
+    const g = new Game(DATA, CFG);
+    g.debugLevelUp();
+    g.takeCard(0);
+    const c = g.raft.candidates()[0]!;
+    g.placeCell(c.gx, c.gy);
+    g.debugDamageCell(c.gx, c.gy, 1);
+    const s = viaJson(g.snapshot());
+    for (const cell of s.raft.cells) delete (cell as { hp?: number }).hp;
+    const r = load(s);
+    expect(r.raft.cells).toHaveLength(2);
+    for (const cell of r.raft.cells) expect(cell.hp).toBe(DATA.num('cell_hp'));
   });
 
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {

@@ -186,7 +186,7 @@ export class Game {
     return true;
   }
 
-  /** Шаг моряка на соседнюю клетку по стороне. Пауза, не по стороне или клетки нет → false. */
+  /** Шаг моряка на соседнюю клетку по стороне. Пауза, не по стороне, клетки нет или клетка разбита → false. */
   walk(dx: number, dy: number): boolean {
     if (this.paused || !this.sailor.move(dx, dy, this.raft)) return false;
     this.stats.steps++;
@@ -269,6 +269,11 @@ export class Game {
   debugSpawnEnemy(x?: number, y?: number): void {
     const at = x !== undefined && y !== undefined ? { x, y } : null;
     if (this.enemies.spawnNow(this.enemiesContext(), at)) this.spearOwned = true;
+  }
+
+  /** Отладка: урон клетке сейчас (центральная неуязвима), и на паузе; ответ — сколько снято. Не укус: в bites и cellDamage не идёт. */
+  debugDamageCell(gx: number, gy: number, amount: number): number {
+    return this.raft.damage(gx, gy, amount);
   }
 
   /** Отладка: уровень прогрессии и потока. */

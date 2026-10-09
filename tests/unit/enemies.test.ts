@@ -18,6 +18,8 @@ const OUT = DATA.num('enemy_spawn_outside_px');
 const INTERVAL_MS = DATA.num('enemy_interval_base_s') * 1000;
 const CELL = DATA.num('cell_px');
 const MAX_STEPS = 20_000;
+const HP = DATA.num('cell_hp');
+const BITE = Number(CRAB.damage) * DATA.location('lagoon').enemyDmgMult;
 
 function env(seed = 3, locationId = 'lagoon'): { enemies: Enemies; world: World; raft: Raft; stats: Stats } {
   const world = new World({ ...HALF, speedMult: 1, locationId, level: 1 }, DATA, new Rng(1));
@@ -129,15 +131,19 @@ describe('Enemies: движение', () => {
       // Первый краб — в шаг нулевой длины: момент выполнения условия у всех частот один.
       enemies.step(0, { raft, level: 1, ready: true });
       advance(enemies, raft, DURATION, 1000 / fps);
-      return snap(enemies.list);
+      return { list: snap(enemies.list), hp: raft.cell(1, 0)!.hp };
     });
-    const [base, ...rest] = runs;
-    expect(base!.length).toBeGreaterThan(0);
+    const [first, ...others] = runs;
+    expect(first!.hp).toBeLessThan(HP);
+    for (const o of others) expect(o.hp).toBe(first!.hp);
+    const base = first!.list;
+    const rest = others.map((o) => o.list);
+    expect(base.length).toBeGreaterThan(0);
     for (const r of rest) {
-      expect(r.map((e) => [e.id, e.phase, e.hp])).toEqual(base!.map((e) => [e.id, e.phase, e.hp]));
+      expect(r.map((e) => [e.id, e.phase, e.hp])).toEqual(base.map((e) => [e.id, e.phase, e.hp]));
       r.forEach((e, i) => {
-        expect(e.x).toBeCloseTo(base![i]!.x, 6);
-        expect(e.y).toBeCloseTo(base![i]!.y, 6);
+        expect(e.x).toBeCloseTo(base[i]!.x, 6);
+        expect(e.y).toBeCloseTo(base[i]!.y, 6);
       });
     }
   });
@@ -260,5 +266,91 @@ describe('Enemies (приёмка 09.10)', () => {
     for (let i = 0; i < hp && enemies.list.includes(e); i++) enemies.hit(300, 0, 0, 1);
     expect(enemies.list).not.toContain(e);
     expect(stats.lootDropped).toBe(hp / 2);
+  });
+});
+
+describe('Enemies: укус клетки (M1-03)', () => {
+  /** Шагать по STEP_MS, пока краб не встанет у клетки. */
+  function untilWait(enemies: Enemies, raft: Raft, e: Enemy): void {
+    for (let i = 0; e.phase === 'approach'; i++) {
+      if (i >= MAX_STEPS) throw new Error('untilWait: предел шагов');
+      enemies.step(STEP_MS, { raft, level: 1, ready: false });
+    }
+  }
+
+  it('цель — самая дальняя целая клетка, кроме центральной', () => {
+    const { enemies, raft } = env();
+    raft.add(1, 0);
+    raft.add(2, 0);
+    const ctx = { raft, level: 1, ready: false };
+    const right = enemies.spawnNow(ctx, { x: 500, y: 0 })!;
+    expect([right.targetGx, right.targetGy]).toEqual([1, 0]);   // центр дальше, но мимо него
+    const left = enemies.spawnNow(ctx, { x: -500, y: 0 })!;
+    expect([left.targetGx, left.targetGy]).toEqual([2, 0]);
+    raft.damage(2, 0, HP);
+    const next = enemies.spawnNow(ctx, { x: -500, y: 0 })!;
+    expect([next.targetGx, next.targetGy]).toEqual([1, 0]);
+  });
+
+  it('все клетки, кроме центральной, разбиты — цель центральная, укус её не ранит', () => {
+    const { enemies, raft, stats } = env();
+    raft.add(1, 0);
+    raft.damage(1, 0, HP);
+    const e = enemies.spawnNow({ raft, level: 1, ready: false }, { x: 300, y: 0 })!;
+    expect([e.targetGx, e.targetGy]).toEqual([0, 0]);
+    untilWait(enemies, raft, e);
+    expect(raft.cell(0, 0)!.hp).toBe(HP);
+    expect(stats.bites).toBe(1);
+    expect(stats.cellDamage).toBe(0);
+  });
+
+  it('укус — по приходу, один раз: за стоянку и уход второго нет', () => {
+    const { enemies, raft, stats } = env();
+    raft.add(1, 0);
+    const ctx = { raft, level: 1, ready: false };
+    const e = enemies.spawnNow(ctx, { x: 500, y: 0 })!;
+    const arrive = ((500 - CELL - REACH) / SPEED) * 1000;
+    enemies.step(arrive - 1, ctx);
+    expect(e.phase).toBe('approach');
+    expect(raft.cell(1, 0)!.hp).toBe(HP);
+    enemies.step(2, ctx);
+    expect(e.phase).toBe('wait');
+    expect(raft.cell(1, 0)!.hp).toBe(HP - BITE);
+    expect(stats.bites).toBe(1);
+    expect(stats.cellDamage).toBe(BITE);
+    enemies.step(WAIT + arrive + 1000, ctx);
+    expect(enemies.list).not.toContain(e);
+    expect(raft.cell(1, 0)!.hp).toBe(HP - BITE);
+    expect(stats.bites).toBe(1);
+  });
+
+  it('enemy_dmg_mult = 2 у Лагуны — укус вдвое сильнее', () => {
+    const from = 'lagoon,1,loc.lagoon,1,1,1.0,';
+    expect(RAW.locations).toContain(from);
+    const data = loadTables({ ...RAW, locations: RAW.locations.replace(from, 'lagoon,1,loc.lagoon,1,1,2,') });
+    expect(data.location('lagoon').enemyDmgMult).toBe(2);
+    const world = new World({ ...HALF, speedMult: 1, locationId: 'lagoon', level: 1 }, data, new Rng(1));
+    const stats = new Stats();
+    const enemies = new Enemies(data, 'lagoon', new Rng(3), world, stats);
+    const raft = new Raft(data);
+    raft.add(1, 0);
+    const e = enemies.spawnNow({ raft, level: 1, ready: false }, { x: 500, y: 0 })!;
+    untilWait(enemies, raft, e);
+    expect(raft.cell(1, 0)!.hp).toBe(HP - 2 * Number(CRAB.damage));
+    expect(stats.cellDamage).toBe(2 * Number(CRAB.damage));
+  });
+
+  it('цель разбили, пока краб плыл, — цель та же, укус ничего не снимает', () => {
+    const { enemies, raft, stats } = env();
+    raft.add(1, 0);
+    const e = enemies.spawnNow({ raft, level: 1, ready: false }, { x: 500, y: 0 })!;
+    advance(enemies, raft, 1000, STEP_MS, false);
+    expect(e.phase).toBe('approach');
+    raft.damage(1, 0, HP);
+    untilWait(enemies, raft, e);
+    expect([e.targetGx, e.targetGy]).toEqual([1, 0]);
+    expect(stats.bites).toBe(1);
+    expect(stats.cellDamage).toBe(0);
+    expect(raft.cell(0, 0)!.hp).toBe(HP);
   });
 });

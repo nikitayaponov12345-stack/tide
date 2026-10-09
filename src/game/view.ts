@@ -16,7 +16,8 @@ const ROLE_COLOR: Record<Role, number> = {
   bottle: 0xa8dadc,
 };
 const COUNTER_COLOR = { ok: 0x7bd88f, half: 0xffd166, full: 0xff6b6b };
-const RAFT_COLOR = 0xc58b4f;
+/** Клетка по степени вида raft.stage: целая, три степени темнее, разбитая — серая. */
+const RAFT_COLOR = [0xc58b4f, 0xa8743f, 0x8b5e32, 0x6e4a27, 0x8a8a8a] as const;
 const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
 /** Места для новой клетки в стройке — бледные. */
 const CANDIDATE_ALPHA = 0.2;
@@ -80,7 +81,7 @@ export class View {
     const { net, world, progression, sailor, raft } = game;
     const p = net.netParams;
     this.raft.clear();
-    for (const c of raft.cells) this.tile(this.raft, c.gx, c.gy).fill(RAFT_COLOR);
+    for (const c of raft.cells) this.tile(this.raft, c.gx, c.gy).fill(RAFT_COLOR[raft.stage(c)]);
     this.ghost.clear();
     if (game.build) {
       for (const c of raft.candidates()) this.tile(this.raft, c.gx, c.gy).fill({ color: 0xffffff, alpha: CANDIDATE_ALPHA });
