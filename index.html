@@ -34,13 +34,11 @@
       }
       #ui .debug-panel {
         position: absolute;
-        left: 8px;
-        bottom: 8px;
         right: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
+        bottom: 8px;
+        max-width: 45%;
+        text-align: right;
+        pointer-events: none;
       }
       #ui button {
         pointer-events: auto;
@@ -62,7 +60,7 @@
         padding: 4px 8px;
         border-radius: 6px;
         background: rgba(0, 0, 0, 0.35);
-        font-size: 13px;
+        font-size: 11px;
         line-height: 1.3;
       }
       #ui .xpbar {
@@ -187,6 +185,21 @@
         border: 2px solid #fff;
         border-radius: 12px;
         padding: 0;
+      }
+      #ui .slot {
+        position: absolute;
+        box-sizing: border-box;
+        padding: 0;
+        font-weight: 700;
+        line-height: 1.1;
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.45);
+      }
+      #ui .slot.selected {
+        border-color: #ffd166;
+        background: rgba(36, 80, 106, 0.9);
+        box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.55);
       }
       #ui .walk-hint {
         position: absolute;

@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+
+/** Версия из package.json: забытая версия в main.ts ловится здесь. */
+const PKG_VERSION = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
 
 // Смоук собранной игры: страница открывается без ошибок, холст есть, поле засеяно, поток идёт, раскладка верная.
 test('игра запускается и рисует сцену', async ({ page }, info) => {
@@ -36,6 +40,7 @@ test('игра запускается и рисует сцену', async ({ page
 
   // Сборка `npm run check` идёт без метки публикации.
   expect(await page.evaluate(() => window.__game!.build)).toBe('dev');
+  expect(await page.evaluate(() => window.__game!.version)).toBe(PKG_VERSION);
 
   await page.screenshot({ path: `build/shots/m0-01_${info.project.name}.png` });
   await page.screenshot({ path: `build/shots/m0-04_${info.project.name}.png` });

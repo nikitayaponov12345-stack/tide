@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KeyboardInput, stepForKey, type KeysTarget } from '../../src/game/input/keys';
+import type { Weapon } from '../../src/core/game';
+import { KeyboardInput, stepForKey, weaponForKey, type KeysTarget } from '../../src/game/input/keys';
 
 type Mods = Partial<Pick<KeyboardEvent, 'key' | 'repeat' | 'ctrlKey' | 'altKey' | 'metaKey'>>;
 
@@ -20,18 +21,23 @@ class FakeWindow implements KeysTarget {
   }
 }
 
-function setup(ok = true): { w: FakeWindow; walks: Array<[number, number]>; steps: () => number } {
+function setup(ok = true): { w: FakeWindow; walks: Array<[number, number]>; weapons: Weapon[]; steps: () => number } {
   const w = new FakeWindow();
   const walks: Array<[number, number]> = [];
+  const weapons: Weapon[] = [];
   let steps = 0;
   const game = {
     walk: (dx: number, dy: number): boolean => {
       walks.push([dx, dy]);
       return ok;
     },
+    setWeapon: (wp: Weapon): boolean => {
+      weapons.push(wp);
+      return true;
+    },
   };
   new KeyboardInput(game, () => steps++, w);
-  return { w, walks, steps: () => steps };
+  return { w, walks, weapons, steps: () => steps };
 }
 
 describe('stepForKey', () => {
@@ -49,7 +55,29 @@ describe('stepForKey', () => {
   });
 });
 
+describe('weaponForKey', () => {
+  it('1 — сеть, 2 — копьё, и на цифровом блоке; остальное — null', () => {
+    expect(weaponForKey('Digit1')).toBe('net');
+    expect(weaponForKey('Numpad1')).toBe('net');
+    expect(weaponForKey('Digit2')).toBe('spear');
+    expect(weaponForKey('Numpad2')).toBe('spear');
+    expect(weaponForKey('Digit3')).toBeNull();
+    expect(weaponForKey('KeyW')).toBeNull();
+  });
+});
+
 describe('KeyboardInput', () => {
+  it('1 и 2 переключают слот, не ходят; с Ctrl, Alt или Meta — не переключают', () => {
+    const { w, walks, weapons } = setup();
+    w.press('Digit2');
+    w.press('Numpad1');
+    w.press('Digit2', { ctrlKey: true });
+    w.press('Digit1', { altKey: true });
+    w.press('Digit2', { metaKey: true });
+    expect(weapons).toEqual(['spear', 'net']);
+    expect(walks).toEqual([]);
+  });
+
   it('русская раскладка и автоповтор ходят', () => {
     const { w, walks } = setup();
     w.press('KeyW', { key: 'ц' });

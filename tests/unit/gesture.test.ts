@@ -10,11 +10,19 @@ type Cmd = { cmd: 'throwTo'; x: number; y: number } | { cmd: 'setPull'; on: bool
 /** Шаг моряка пальцем, точки мира. */
 const PX = DATA.num('walk_drag_px');
 
-/** Поддельная игра: записывает команды; состояние сети задаёт тест (бросок из ready переводит в flying), ответ walk — walkOk. */
+/**
+ * Поддельная игра: записывает команды; состояние сети задаёт тест (бросок из ready переводит в flying), ответ walk — walkOk.
+ * canThrow — по сети, пока тест не задал throwable (как у Game со слотом копья: сеть в воде, копьё у моряка).
+ */
 class FakeGame implements GestureGame {
   readonly net: { state: NetState } = { state: 'ready' };
   readonly log: Cmd[] = [];
   walkOk = true;
+  throwable: boolean | null = null;
+
+  canThrow(): boolean {
+    return this.throwable ?? this.net.state === 'ready';
+  }
 
   walk(dx: number, dy: number): boolean {
     this.log.push({ cmd: 'walk', dx, dy });
@@ -49,6 +57,27 @@ const inWater = (): FakeGame => {
 };
 
 describe('Gesture: команды', () => {
+  it('бросок и удержание — по canThrow, а не по состоянию сети', () => {
+    const a = new Gesture(PX);
+    const spear = inWater();
+    spear.throwable = true;   // слот копья: сеть в воде, копьё у моряка
+    a.onDown(at(10, 20), spear);
+    expect(spear.log).toEqual([{ cmd: 'throwTo', x: 10, y: 20 }]);
+    a.onUp(at(10, 20), spear);
+    a.onDown(at(10, 20, 'touch'), spear);
+    a.onUp(at(30, 40, 'touch'), spear);
+    expect(spear.throws().at(-1)).toEqual({ cmd: 'throwTo', x: 30, y: 40 });
+
+    const busy = new FakeGame();
+    busy.throwable = false;   // сеть у моряка, а копьё в полёте
+    a.onDown(at(10, 20), busy);
+    a.onUp(at(10, 20), busy);
+    a.onDown(at(10, 20, 'touch'), busy);
+    a.onUp(at(10, 20, 'touch'), busy);
+    expect(busy.throws()).toEqual([]);
+    expect(busy.log.filter((c) => c.cmd === 'setPull').length).toBe(4);
+  });
+
   it('мышь бросает на down, касание — на up; касание, начатое при сети в воде, не бросает', () => {
     const g = new FakeGame();
     const a = new Gesture(PX);

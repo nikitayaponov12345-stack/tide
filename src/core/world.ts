@@ -109,6 +109,11 @@ export class World {
     return i < 0 ? undefined : this.items.splice(i, 1)[0];
   }
 
+  /** Добыча врага в точке (x, y): множитель скорости и фазу бросает Rng врагов — поток предметов не сдвигается. */
+  addLoot(kind: string, x: number, y: number, speed: number, phase: number): Item {
+    return this.push(this.data.item(kind), x, y, speed, phase);
+  }
+
   /** Выбор вида по долям среди открытых предметов в порядке файла; тратит один бросок rng. */
   rollKind(): ItemRow {
     let r = this.rng.next() * this.openShare;
@@ -178,9 +183,15 @@ export class World {
     const row = this.rollKind();
     const speed = this.rng.range(this.data.num('item_speed_min'), this.data.num('item_speed_max'));
     const phase = this.rng.range(0, 2 * Math.PI);
-    this.items.push({
+    this.push(row, x, y, speed, phase);
+  }
+
+  private push(row: ItemRow, x: number, y: number, speed: number, phase: number): Item {
+    const it: Item = {
       id: this.nextId++, kind: row.id, role: row.role, xp: row.xp, x, y,
       radius: row.radius, weight: row.weight, speed, phase,
-    });
+    };
+    this.items.push(it);
+    return it;
   }
 }

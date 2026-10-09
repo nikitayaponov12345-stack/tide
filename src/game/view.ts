@@ -20,14 +20,23 @@ const RAFT_COLOR = 0xc58b4f;
 const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
 /** Места для новой клетки в стройке — бледные. */
 const CANDIDATE_ALPHA = 0.2;
+const ENEMY_COLOR = 0xd62828;
+/** Враг под водой (идёт к клетке и уходит) — полупрозрачный, у клетки — нет. */
+const ENEMY_UNDERWATER_ALPHA = 0.45;
+const SPEAR_COLOR = 0xf1e3c8;
+/** Длина наконечника копья, точки дизайна. */
+const SPEAR_TIP = 18;
+const LABEL_STYLE = { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: '700', stroke: { color: 0x000000, width: 3 } } as const;
 
 export interface ViewOptions {
   waterColor: string; // цвет воды локации
   cellPx: number;     // сторона клетки плота
+  enemyRadius: number; // радиус мелкого врага
 }
 
 /**
- * Рабочая отрисовка: вода, плот (в стройке — места для клетки и призрак), моряк, круг дальности, предметы, сеть с верёвкой и значки опыта.
+ * Рабочая отрисовка: вода, плот (в стройке — места для клетки и призрак), моряк, круг дальности, предметы и добыча, враги с прочностью,
+ * сеть и копьё с верёвкой, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
 export class View {
@@ -41,8 +50,11 @@ export class View {
   private readonly range = new Graphics();
   private readonly items = new Graphics();
   private readonly net = new Graphics();
+  private readonly spear = new Graphics();
+  private readonly enemies = new Graphics();
+  private readonly enemyHp = new Container();
   private readonly icons = new Graphics();
-  private readonly counter = new Text({ text: '', style: { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: '700', stroke: { color: 0x000000, width: 3 } } });
+  private readonly counter = new Text({ text: '', style: LABEL_STYLE });
   private iconTargetY = 0;
 
   constructor(
@@ -50,7 +62,7 @@ export class View {
     private readonly opts: ViewOptions,
   ) {
     this.counter.anchor.set(0.5, 1);
-    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.net, this.sailor, this.counter, this.icons);
+    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.net, this.spear, this.sailor, this.counter, this.icons);
     this.world.mask = this.field;
     root.addChild(this.sea, this.field, this.world);
   }
@@ -83,6 +95,19 @@ export class View {
     this.items.clear();
     for (const it of world.items) this.items.circle(it.x, it.y, it.radius).fill(ROLE_COLOR[it.role]);
 
+    this.syncEnemies(game);
+
+    this.spear.clear();
+    const sp = game.spear;
+    if (sp.state !== 'ready') {
+      const dx = sp.x - sailor.x;
+      const dy = sp.y - sailor.y;
+      const len = Math.hypot(dx, dy) || 1;
+      this.spear
+        .moveTo(sailor.x, sailor.y).lineTo(sp.x, sp.y).stroke({ width: 1, color: SPEAR_COLOR, alpha: 0.6 })
+        .moveTo(sp.x - (dx / len) * SPEAR_TIP, sp.y - (dy / len) * SPEAR_TIP).lineTo(sp.x, sp.y).stroke({ width: 4, color: 0xffffff });
+    }
+
     this.net.clear();
     this.counter.visible = net.state !== 'ready';
     if (net.state !== 'ready') {
@@ -106,6 +131,28 @@ export class View {
       const t = Math.min(1, (now - icon.launchMs) / (icon.arriveMs - icon.launchMs));
       this.icons.circle(icon.fromX * (1 - t), icon.fromY + (this.iconTargetY - icon.fromY) * t, 6).fill(0x9be564).stroke({ width: 1, color: 0x1d3b1d });
     }
+  }
+
+  /** Враги — красные круги, под водой полупрозрачные; число прочности над каждым. */
+  private syncEnemies(game: Game): void {
+    const list = game.enemies.list;
+    const r = this.opts.enemyRadius;
+    this.enemies.clear();
+    while (this.enemyHp.children.length < list.length) {
+      const t = new Text({ text: '', style: { ...LABEL_STYLE, fill: 0xffffff } });
+      t.anchor.set(0.5, 1);
+      this.enemyHp.addChild(t);
+    }
+    this.enemyHp.children.forEach((c, i) => (c.visible = i < list.length));
+    list.forEach((e, i) => {
+      const alpha = e.phase === 'wait' ? 1 : ENEMY_UNDERWATER_ALPHA;
+      this.enemies.circle(e.x, e.y, r).fill({ color: ENEMY_COLOR, alpha });
+      const t = this.enemyHp.children[i] as Text;
+      const hp = String(e.hp);
+      if (t.text !== hp) t.text = hp;
+      t.alpha = alpha;
+      t.position.set(e.x, e.y - r - 2);
+    });
   }
 
   /** Клетка сетки (gx, gy) со скруглением, в координатах мира. */

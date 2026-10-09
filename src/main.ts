@@ -15,8 +15,9 @@ import { WalkHint } from './ui/hint';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
 import { PlaceButton } from './ui/place';
+import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.5';
+const VERSION = '0.0.6';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -41,7 +42,7 @@ async function boot(): Promise<void> {
   const game = new Game(DATA, { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED });
   const { world, net, progression, stats, sailor, raft } = game;
   const cellPx = DATA.num('cell_px');
-  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx });
+  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx, enemyRadius: DATA.num('enemy_radius_px') });
   view.build(stage.layout);
   stage.onLayout = (layout) => {
     const s = worldSize(layout);
@@ -69,6 +70,7 @@ async function boot(): Promise<void> {
   const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
   const hint = new WalkHint(ui, game, text);
+  const slots = new WeaponSlots(ui, game, text);
   new PointerInput(stage.app.canvas, game, () => stage.layout, cursor, DATA.num('walk_drag_px'));
   // Шаг с клавиатуры — тоже первое действие игрока; в stats.taps клавиши не входят.
   new KeyboardInput(game, () => control.notePlay());
@@ -90,10 +92,12 @@ async function boot(): Promise<void> {
     cards.update(stage.layout, performance.now());
     place.update(stage.layout, cellPx);
     hint.update(stage.layout);
+    slots.update(stage.layout);
     overlay.update(
       performance.now(),
       `Прилив ${VERSION} (${BUILD}) · ${stage.layout} · ${Math.round(ticker.FPS)} к/с · уровень ${progression.level}` +
-        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · предметов ${world.items.length}`,
+        ` · сеть ${net.state} ${net.caught.length}/${net.netParams.capacity} · оружие ${game.weapon} · крабов ${game.enemies.list.length}` +
+        ` · предметов ${world.items.length}`,
     );
   });
 
@@ -130,6 +134,10 @@ async function boot(): Promise<void> {
       build: game.build && { card: game.build.card, candidates: raft.candidates() },
       raft: raft.cells.map((c) => ({ ...c })),
       walkHint: game.walkHint,
+      weapon: game.weapon,
+      spearOwned: game.spearOwned,
+      spear: { state: game.spear.state, x: game.spear.x, y: game.spear.y, damage: game.spear.damage },
+      enemies: game.enemies.list.map(({ id, x, y, hp, radius, phase }) => ({ id, x, y, hp, radius, phase })),
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
@@ -137,8 +145,10 @@ async function boot(): Promise<void> {
       takeCard: (i) => game.takeCard(i),
       placeCell: (gx, gy) => game.placeCell(gx, gy),
       walk: (dx, dy) => game.walk(dx, dy),
+      setWeapon: (w) => game.setWeapon(w),
     },
     debugLevelUp: () => game.debugLevelUp(),
+    debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),

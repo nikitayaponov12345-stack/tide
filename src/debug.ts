@@ -1,5 +1,8 @@
 import type { Role } from './core/data/tables';
+import type { EnemyPhase } from './core/enemies';
+import type { Weapon } from './core/game';
 import type { NetState } from './core/net';
+import type { SpearState } from './core/spear';
 import type { Layout } from './game/layout';
 import type { PlatformCall } from './platform/platform';
 
@@ -31,7 +34,10 @@ export interface GameDebug {
     xpToNext: number;
     /** caught — сколько предметов в сети. */
     net: { state: NetState; x: number; y: number; caught: number; capacity: number; range: number };
-    stats: { throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; steps: number; gameMs: number };
+    stats: {
+      throws: number; emptyThrows: number; itemsCaught: number; xpGained: number; taps: number; steps: number; gameMs: number;
+      spearThrows: number; spearHits: number; enemiesKilled: number; enemiesEscaped: number; lootDropped: number;
+    };
     /** Клетка моряка и её центр в координатах мира. */
     sailor: { gx: number; gy: number; x: number; y: number };
     /** Окно выбора: карточки в порядке показа. */
@@ -41,18 +47,29 @@ export interface GameDebug {
     raft: Array<{ gx: number; gy: number }>;
     /** Подсказка о ходьбе видна (правило ядра Game.walkHint). */
     walkHint: boolean;
+    /** Выбранный слот оружия и есть ли копьё (слоты видны). */
+    weapon: Weapon;
+    spearOwned: boolean;
+    spear: { state: SpearState; x: number; y: number; damage: number };
+    /** Мелкие враги, координаты мира. */
+    enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase }>;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
+    /** Бросок выбранного оружия. */
     throwTo(x: number, y: number): boolean;
     setPull(on: boolean): void;
     takeCard(i: number): boolean;
     placeCell(gx: number, gy: number): boolean;
     /** Шаг моряка на соседнюю клетку по стороне. */
     walk(dx: number, dy: number): boolean;
+    /** Слот оружия; копья ещё нет → false. */
+    setWeapon(w: Weapon): boolean;
   };
   /** Опыт до следующего уровня сразу: окно открывается тут же. */
   debugLevelUp(): void;
+  /** Краб сейчас, без условия и таймера (и на паузе); с точкой — в ней. Даёт копьё. */
+  debugSpawnEnemy(x?: number, y?: number): void;
   /** Центр клетки плота в координатах окна (CSS-пиксели). */
   cellToScreen(gx: number, gy: number): { x: number; y: number };
   /** Предметы в воде, координаты мира. */

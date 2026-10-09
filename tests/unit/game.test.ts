@@ -250,9 +250,11 @@ describe('Game: окно выбора и стройка', () => {
     expect(g.net.netParams.range).toBe(before.range);
   });
 
-  it('карточка, которая не меняет сеть, — ошибка, окно остаётся открытым', () => {
-    const g = new Game(DATA, CFG);
-    for (const id of ['spear_stronger', 'net_tower']) {
+  it('карточка, которая не меняет ни сеть, ни копьё, — ошибка, окно остаётся открытым', () => {
+    // У «Копьё сильнее» с M0-08 есть механика: берём копию таблицы с выдуманным показателем.
+    const data: Tables = { ...DATA, cards: DATA.cards.map((c) => (c.id === 'net_wider' ? { ...c, stat: 'made_up' } : c)) };
+    const g = new Game(data, CFG);
+    for (const id of ['net_wider', 'net_tower']) {
       const w = { level: 5, cards: [{ id, available: true, reason: null }] };
       g.window = w;
       expect(() => g.takeCard(0)).toThrow();
