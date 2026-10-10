@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.16';
+const VERSION = '0.0.17';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';

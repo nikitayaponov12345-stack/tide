@@ -4,16 +4,16 @@ import { DATA, RAW } from '../../src/data';
 
 // Сторож таблиц (исключение TESTPLAN §1): числа вписаны, чтобы случайная правка data/*.csv была заметна.
 describe('таблицы данных', () => {
-  it('40 уровней, до 40-го — 38 211 опыта', () => {
+  it('40 уровней, до 40-го — 16 241 опыта', () => {
     expect(DATA.levels).toHaveLength(40);
     const sum = DATA.levels.slice(1).reduce((s, l) => s + l.xpStep, 0);
-    expect(sum).toBe(38211);
+    expect(sum).toBe(16241);
   });
 
   it('стоимость уровня, в том числе выше 40-го', () => {
     expect(DATA.levelStep(2, 1)).toBe(6);
-    expect(DATA.levelStep(40, 2)).toBe(3120);
-    expect(DATA.levelStep(41, 1)).toBe(1575);
+    expect(DATA.levelStep(40, 2)).toBe(1600);
+    expect(DATA.levelStep(41, 1)).toBe(820);
     expect(() => DATA.levelStep(1, 1)).toThrow();
   });
 
@@ -33,6 +33,7 @@ describe('таблицы данных', () => {
 
   it('константы и строки перевода', () => {
     expect(() => DATA.num('nope')).toThrow('constants.csv: нет ключа nope');
+    expect(DATA.num('card_weight_raft')).toBe(2.5);
     expect(DATA.text('loc.lagoon', 'ru')).toBe('Лагуна');
     expect(DATA.text('loc.lagoon', 'en')).toBe('Lagoon');
   });
