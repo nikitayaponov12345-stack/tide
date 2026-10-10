@@ -30,6 +30,8 @@ const ENEMY_COLOR = 0xd62828;
 /** Враг под водой (идёт к клетке и уходит) — полупрозрачный, у клетки — нет. */
 const ENEMY_UNDERWATER_ALPHA = 0.45;
 const SPEAR_COLOR = 0xf1e3c8;
+/** Сеть башни: верёвка от клетки башни и круг сети. */
+const TOWER_NET = { rope: { width: 1.5, color: 0x9fe3d6, alpha: 0.8 }, ring: { width: 2, color: 0x9fe3d6 } } as const;
 /** Длина наконечника копья, точки дизайна. */
 const SPEAR_TIP = 18;
 const LABEL_STYLE = { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: '700', stroke: { color: 0x000000, width: 3 } } as const;
@@ -42,7 +44,7 @@ export interface ViewOptions {
 
 /**
  * Рабочая отрисовка: вода, плот с постройками (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
- * сеть и копьё с верёвкой, значки опыта.
+ * сеть и копьё с верёвкой, сети башен, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
 export class View {
@@ -125,6 +127,15 @@ export class View {
     }
 
     this.net.clear();
+    for (const t of game.towers.list) {
+      const home = raft.cellCenter(t);
+      for (const n of t.nets) {
+        if (n.state === 'ready') continue;
+        this.net
+          .moveTo(home.x, home.y).lineTo(n.x, n.y).stroke(TOWER_NET.rope)
+          .circle(n.x, n.y, game.towers.netRadius).stroke(TOWER_NET.ring);
+      }
+    }
     this.counter.visible = net.state !== 'ready';
     if (net.state !== 'ready') {
       const r = p.radius;

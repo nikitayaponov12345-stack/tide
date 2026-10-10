@@ -2,13 +2,15 @@ import { TIME_EPS } from './clock';
 import type { CardKind, CardRow, Tables } from './data/tables';
 import { Deck, type DeckContext, type DeckSnapshot, type OfferCard } from './deck';
 import { Enemies, type EnemiesContext, type EnemiesSnapshot } from './enemies';
-import { Net, type NetParams, type NetSnapshot } from './net';
+import { Net, type CaughtItem, type NetSnapshot } from './net';
 import { Progression, type ProgressionSnapshot } from './progression';
 import { Raft, type Cell, type Spot } from './raft';
 import { Rng } from './rng';
 import { Sailor } from './sailor';
 import { Spear, type SpearSnapshot } from './spear';
 import { Stats, type StatsSnapshot } from './stats';
+import { Towers, type TowersSnapshot } from './towers';
+import { buildingUpgrade, sailorUpgrade } from './upgrades';
 import { World, type WorldSnapshot } from './world';
 
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
@@ -22,14 +24,14 @@ export interface GameSnapshot {
   enemies: EnemiesSnapshot; progression: ProgressionSnapshot; deck: DeckSnapshot; stats: StatsSnapshot;
   window: OfferWindow | null; build: { card: string } | null; weapon: Weapon; spearOwned: boolean; hasWalked: boolean;
   secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
+  /** Нет в записи до M1-06: башни встают по постройкам плота с готовыми сетями. */
+  towers?: TowersSnapshot;
 }
 
-/** Виды карточек в игре: улучшения построек придут в M1-06. */
-const KINDS: readonly CardKind[] = ['raft', 'building', 'sailor_upgrade'];
+/** Виды карточек в игре. */
+const KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
 /** Постройки, которые уже можно ставить (id из buildings.csv). */
 export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower'];
-/** Показатель карточки моряка → поле параметров сети. */
-const NET_STATS: Record<string, keyof NetParams> = { net_radius: 'radius', net_capacity: 'capacity', throw_range: 'range', pull: 'pull' };
 /** Роль предмета, улов которой (вместе со второй клеткой) приводит первого врага: в Лагуне — бочонок. */
 const FIRST_ENEMY_ROLE = 'medium';
 
@@ -41,6 +43,7 @@ export class Game {
   readonly net: Net;
   readonly spear: Spear;
   readonly enemies: Enemies;
+  readonly towers: Towers;
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
@@ -88,6 +91,7 @@ export class Game {
     this.spear.range = tier.throwRange;
     this.weaponKey = tier.weaponKey;
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
+    this.towers = new Towers(data, cfg.locationId, new Rng(cfg.seed + 4), this.stats);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -111,7 +115,7 @@ export class Game {
       window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })) },
       build: this.build && { ...this.build },
       weapon: this.weapon, spearOwned: this.spearOwned, hasWalked: this.hasWalked, secondCellMs: this.secondCellMs,
-      mediumCaught: this.mediumCaught, pending: this.pending.slice(), hold: this.hold,
+      mediumCaught: this.mediumCaught, pending: this.pending.slice(), hold: this.hold, towers: this.towers.snapshot(),
     };
   }
 
@@ -136,6 +140,8 @@ export class Game {
     g.mediumCaught = s.mediumCaught;
     g.pending.push(...s.pending);
     g.hold = s.hold;
+    if (s.towers) g.towers.restore(s.towers);
+    g.towers.sync(g.raft);
     return g;
   }
 
@@ -173,11 +179,14 @@ export class Game {
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
     if (caught) {
-      this.progression.addCatch(caught, this.world.timeMs);
+      this.addCatch(caught);
       this.stats.itemsCaught += caught.length;
-      for (const it of caught) this.stats.xpByRole[it.role] += it.xp * this.xpMult;
       if (caught.length === 0) this.stats.emptyThrows++;
-      if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
+    }
+    const towerCaught = this.towers.step(dtMs, this.world, this.raft);
+    if (towerCaught.length > 0) {
+      this.addCatch(towerCaught);
+      this.stats.towerCaught += towerCaught.length;
     }
     if (this.spear.step(dtMs, this.enemies).length > 0) this.stats.spearHits++;
     this.enemies.step(dtMs, this.enemiesContext());
@@ -257,9 +266,9 @@ export class Game {
     const card = this.deck.card(offer.id);
     // Сначала проверки и расчёт: ошибка оставляет окно открытым, а карточку — невзятой.
     let apply: (() => void) | null = null;
-    if (card.kind === 'sailor_upgrade') apply = this.upgraded(card);
+    if (card.kind === 'sailor_upgrade') apply = sailorUpgrade(card, this.net, this.spear);
+    else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, this.towers);
     else if (card.kind === 'building' && !BUILDINGS_IN_GAME.includes(card.target)) throw new Error(`takeCard: постройка ${card.target} ещё не в игре`);
-    else if (card.kind !== 'raft' && card.kind !== 'building') throw new Error(`takeCard: вид ${card.kind} (${card.id}) ещё не в игре`);
     this.deck.take(card.id, w.level);
     this.window = null;
     if (apply) {
@@ -290,7 +299,10 @@ export class Game {
     const card = this.buildCard();
     if (this.menu || !card || !this.canPlace(gx, gy)) return false;
     if (card.kind === 'raft') this.raft.add(gx, gy);
-    else this.raft.build(gx, gy, card.target);
+    else {
+      this.raft.build(gx, gy, card.target);
+      this.towers.sync(this.raft);
+    }
     if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
     this.build = null;
     this.openNext();
@@ -328,6 +340,13 @@ export class Game {
     this.world.setLevel(level);
   }
 
+  /** Улов сети или башен: значки, опыт по ролям, бочонок для первого врага. */
+  private addCatch(caught: CaughtItem[]): void {
+    this.progression.addCatch(caught, this.world.timeMs);
+    for (const it of caught) this.stats.xpByRole[it.role] += it.xp * this.xpMult;
+    if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
+  }
+
   private buildCard(): CardRow | null {
     return this.build && this.deck.card(this.build.card);
   }
@@ -360,24 +379,6 @@ export class Game {
       has: (b) => this.raft.hasBuilding(b),
       spearOwned: this.spearOwned,
       bossVisitSeen: false,
-    };
-  }
-
-  /** Карточка моряка: add — += value, mul — × (1 + value), set — = value. Расчёт сейчас, изменение — в возвращённой функции. */
-  private upgraded(card: CardRow): () => void {
-    const change = (v: number): number => (card.mode === 'add' ? v + card.value! : card.mode === 'mul' ? v * (1 + card.value!) : card.value!);
-    if (card.value === null || card.mode === null) throw new Error(`takeCard: ${card.id} без value или mode`);
-    if (card.stat === 'spear_damage') {
-      const damage = change(this.spear.damage);
-      return () => (this.spear.damage = damage);
-    }
-    const key = card.stat === null ? undefined : NET_STATS[card.stat];
-    if (!key) throw new Error(`takeCard: ${card.id} не меняет ни сеть, ни копьё (stat ${card.stat ?? '—'})`);
-    const p = { ...this.net.netParams };
-    p[key] = change(p[key]);
-    return () => {
-      this.net.setParams(p);
-      this.spear.range = p.range;
     };
   }
 }

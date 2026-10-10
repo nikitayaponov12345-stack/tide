@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.12';
+const VERSION = '0.0.13';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -204,6 +204,9 @@ async function boot(): Promise<void> {
       spearOwned: game.spearOwned,
       spear: { state: game.spear.state, x: game.spear.x, y: game.spear.y, damage: game.spear.damage },
       enemies: game.enemies.list.map(({ id, x, y, hp, radius, phase }) => ({ id, x, y, hp, radius, phase })),
+      towers: game.towers.list.map((t) => ({
+        gx: t.gx, gy: t.gy, nets: t.nets.map((n) => ({ state: n.state, x: n.x, y: n.y, caught: n.caught.length })),
+      })),
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),

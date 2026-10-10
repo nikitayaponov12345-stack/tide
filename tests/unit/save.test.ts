@@ -77,6 +77,7 @@ const CASES: Record<string, (g: Game) => boolean> = {
   icons: (g) => g.progression.icons.length > 0,
   cellHurt: (g) => g.raft.cells.some((c) => c.hp < g.raft.cellHp),
   building: (g) => g.raft.cells.some((c) => c.building !== null),
+  towerNet: (g) => g.towers.list.some((t) => t.nets.some((n) => n.state !== 'ready')),
 };
 
 describe('Снимок партии', () => {
@@ -87,7 +88,7 @@ describe('Снимок партии', () => {
     expect(viaJson(load(s).snapshot())).toEqual(s);
   });
 
-  it('продолжение с записи в любом из девяти случаев идёт так же, как прогон без перерыва', () => {
+  it('продолжение с записи в любом из десяти случаев идёт так же, как прогон без перерыва', () => {
     const g = new Game(DATA, CFG);
     const saves: Array<{ name: string; at: number; snap: GameSnapshot }> = [];
     for (let t = 0; t < RUN_TACTS; t++) {
@@ -133,6 +134,20 @@ describe('Снимок партии', () => {
     for (const cell of r.raft.cells) expect(cell.building).toBeNull();
     expect(r.raft.freeCells()).toBe(2);
     expect(r.raft.buildingCount()).toBe(0);
+  });
+
+  it('запись до M1-06: без towers башни встают по постройкам плота с готовыми сетями', () => {
+    const g = new Game(DATA, CFG);
+    g.raft.build(0, 0, 'net_tower');
+    g.towers.sync(g.raft);
+    stepWhile(g, () => g.stats.towerThrows === 0);
+    const s = viaJson(g.snapshot());
+    delete s.towers;
+    const r = load(s);
+    expect(r.towers.list).toHaveLength(1);
+    expect(r.towers.list[0]).toMatchObject({ gx: 0, gy: 0 });
+    for (const n of r.towers.list[0]!.nets) expect(n).toMatchObject({ state: 'ready', x: 0, y: 0, restMs: 0, caught: [] });
+    expect(r.towers.pauseMs).toBe(g.towers.pauseMs);
   });
 
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {

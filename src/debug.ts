@@ -3,6 +3,7 @@ import type { EnemyPhase } from './core/enemies';
 import type { Weapon } from './core/game';
 import type { NetState } from './core/net';
 import type { SpearState } from './core/spear';
+import type { TowerNetState } from './core/towers';
 import type { Layout } from './game/layout';
 import type { PlatformCall } from './platform/platform';
 
@@ -41,6 +42,8 @@ export interface GameDebug {
       bites: number; cellDamage: number;
       /** Нажатия в ремонте, прибавившие прочность. */
       repairTaps: number;
+      /** Броски сетевых башен и предметы, которые вернули их сети. */
+      towerThrows: number; towerCaught: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -64,6 +67,8 @@ export interface GameDebug {
     spear: { state: SpearState; x: number; y: number; damage: number };
     /** Мелкие враги, координаты мира. */
     enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase }>;
+    /** Сетевые башни: клетка и сети, caught — сколько предметов в сети. */
+    towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
