@@ -33,6 +33,8 @@ export class World {
   timeMs = 0;
   spawned = 0;   // появились из потока
   seeded = 0;    // засеяны на старте
+  /** Множитель потока события локации; задаёт Game каждый шаг, в снимок не входит. */
+  flowMult = 1;
   private spawnAcc = 0;
   private nextId = 1;
   private cfg: WorldConfig;
@@ -122,7 +124,7 @@ export class World {
       if (Math.abs(it.x) > halfW + MARGIN || Math.abs(it.y) > halfH + MARGIN) this.items.splice(i, 1);
     }
     // Накопитель: за долгий шаг появляется столько предметов, сколько положено по времени.
-    const interval = 1000 / this.data.flowPerS(this.cfg.level);
+    const interval = 1000 / (this.data.flowPerS(this.cfg.level) * this.flowMult);
     this.spawnAcc += dtMs;
     while (this.spawnAcc + TIME_EPS >= interval) {
       this.spawnAcc -= interval;

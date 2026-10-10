@@ -29,6 +29,8 @@ const CANDIDATE_ALPHA = 0.2;
 const ENEMY_COLOR = 0xd62828;
 /** Враг под водой (идёт к клетке и уходит) — полупрозрачный, у клетки — нет. */
 const ENEMY_UNDERWATER_ALPHA = 0.45;
+/** Тёмная вода в событие локации: слой поверх воды, под миром. */
+const EVENT_DARK = { color: 0x000000, alpha: 0.35 } as const;
 const SPEAR_COLOR = 0xf1e3c8;
 /** Сеть башни: верёвка от клетки башни и круг сети. */
 const TOWER_NET = { rope: { width: 1.5, color: 0x9fe3d6, alpha: 0.8 }, ring: { width: 2, color: 0x9fe3d6 } } as const;
@@ -49,6 +51,8 @@ export interface ViewOptions {
  */
 export class View {
   private readonly sea = new Graphics();
+  /** Затемнение воды в событие локации (шторм). */
+  private readonly dark = new Graphics();
   /** Маска мира: поле дизайна — полосы за краем поля остаются пустыми. */
   private readonly field = new Graphics();
   private readonly world = new Container();
@@ -72,12 +76,14 @@ export class View {
     this.counter.anchor.set(0.5, 1);
     this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.net, this.spear, this.sailor, this.counter, this.icons);
     this.world.mask = this.field;
-    root.addChild(this.sea, this.field, this.world);
+    this.dark.visible = false;
+    root.addChild(this.sea, this.dark, this.field, this.world);
   }
 
   build(layout: Layout): void {
     const { w, h } = DESIGN[layout];
     this.sea.clear().rect(0, 0, w, h).fill(this.opts.waterColor);
+    this.dark.clear().rect(0, 0, w, h).fill(EVENT_DARK);
     this.field.clear().rect(0, 0, w, h).fill(0xffffff);
     this.world.position.set(w / 2, h / 2);
     this.iconTargetY = -h / 2 + XP_BAR.top + XP_BAR.height / 2;
@@ -87,6 +93,7 @@ export class View {
   sync(game: Game, cursor: BuildCursor): void {
     const { net, world, progression, sailor, raft } = game;
     const p = net.netParams;
+    this.dark.visible = game.events.active;
     this.raft.clear();
     for (const c of raft.cells) this.tile(this.raft, c.gx, c.gy).fill(RAFT_COLOR[raft.stage(c)]);
     if (game.repair) for (const c of raft.cells) if (c.hp < raft.cellHp) this.tile(this.raft, c.gx, c.gy).stroke(REPAIR_STROKE);
@@ -160,9 +167,10 @@ export class View {
     }
   }
 
-  /** Враги — красные круги, под водой полупрозрачные; число прочности над каждым. */
+  /** Враги — красные круги, под водой полупрозрачные (в событие с enemiesSurface — все целиком); число прочности над каждым. */
   private syncEnemies(game: Game): void {
     const list = game.enemies.list;
+    const surface = game.events.enemiesSurface;
     const r = this.opts.enemyRadius;
     this.enemies.clear();
     while (this.enemyHp.children.length < list.length) {
@@ -172,7 +180,7 @@ export class View {
     }
     this.enemyHp.children.forEach((c, i) => (c.visible = i < list.length));
     list.forEach((e, i) => {
-      const alpha = e.phase === 'wait' ? 1 : ENEMY_UNDERWATER_ALPHA;
+      const alpha = surface || e.phase === 'wait' ? 1 : ENEMY_UNDERWATER_ALPHA;
       this.enemies.circle(e.x, e.y, r).fill({ color: ENEMY_COLOR, alpha });
       const t = this.enemyHp.children[i] as Text;
       const hp = String(e.hp);

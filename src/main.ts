@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.13';
+const VERSION = '0.0.14';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -207,6 +207,7 @@ async function boot(): Promise<void> {
       towers: game.towers.list.map((t) => ({
         gx: t.gx, gy: t.gy, nets: t.nets.map((n) => ({ state: n.state, x: n.x, y: n.y, caught: n.caught.length })),
       })),
+      event: { id: game.events.id, active: game.events.active, leftMs: game.events.leftMs, calmMs: game.events.calmMs, count: game.events.count },
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
@@ -220,6 +221,7 @@ async function boot(): Promise<void> {
     },
     debugLevelUp: () => game.debugLevelUp(),
     debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
+    debugEvent: () => game.debugEvent(),
     debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),

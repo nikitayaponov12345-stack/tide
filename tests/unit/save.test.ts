@@ -78,6 +78,7 @@ const CASES: Record<string, (g: Game) => boolean> = {
   cellHurt: (g) => g.raft.cells.some((c) => c.hp < g.raft.cellHp),
   building: (g) => g.raft.cells.some((c) => c.building !== null),
   towerNet: (g) => g.towers.list.some((t) => t.nets.some((n) => n.state !== 'ready')),
+  storm: (g) => g.events.active,
 };
 
 describe('Снимок партии', () => {
@@ -88,7 +89,7 @@ describe('Снимок партии', () => {
     expect(viaJson(load(s).snapshot())).toEqual(s);
   });
 
-  it('продолжение с записи в любом из десяти случаев идёт так же, как прогон без перерыва', () => {
+  it('продолжение с записи в любом из одиннадцати случаев идёт так же, как прогон без перерыва', () => {
     const g = new Game(DATA, CFG);
     const saves: Array<{ name: string; at: number; snap: GameSnapshot }> = [];
     for (let t = 0; t < RUN_TACTS; t++) {

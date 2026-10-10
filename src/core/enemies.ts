@@ -13,8 +13,11 @@ export interface Enemy {
 }
 /** Попадание по врагу: где он был и сколько прочности снято. */
 export interface EnemyHit { x: number; y: number; dealt: number }
-/** Что враги видят у игры на шаге; ready — условие первого врага выполнено; buildings — число построек (нет — 0). */
-export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number }
+/**
+ * Что враги видят у игры на шаге; ready — условие первого врага выполнено; buildings — число построек (нет — 0);
+ * rateMult — во сколько раз чаще враги в событие локации (нет — 1).
+ */
+export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number; rateMult?: number }
 
 export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
 
@@ -60,10 +63,10 @@ export class Enemies {
     this.cellPx = data.num('cell_px');
   }
 
-  /** Интервал между врагами, мс: база / (1 + доля × построек), не чаще минимума. */
-  intervalMs(buildings: number): number {
+  /** Интервал между врагами, мс: база / (1 + доля × построек) / множитель события, не чаще минимума. */
+  intervalMs(buildings: number, rateMult = 1): number {
     const d = this.data;
-    const s = d.num('enemy_interval_base_s') / (1 + d.num('enemy_interval_per_building') * buildings);
+    const s = d.num('enemy_interval_base_s') / (1 + d.num('enemy_interval_per_building') * buildings) / rateMult;
     return Math.max(d.num('enemy_interval_min_s'), s) * 1000;
   }
 
@@ -89,9 +92,10 @@ export class Enemies {
     if (this.speed === null) return;
     for (const e of [...this.list]) this.advance(e, dtMs, ctx.raft);
     if (this.started) {
-      // Враг, появившийся внутри шага, проходит остаток шага. Интервал стал короче накопленного — враг сразу.
-      const interval = this.intervalMs(ctx.buildings ?? 0);
-      this.acc += dtMs;
+      // Враг, появившийся внутри шага, проходит остаток шага. Интервал стал короче накопленного — враг сразу, но один:
+      // накопитель не больше нынешнего интервала. Долгий шаг по-прежнему даёт столько врагов, сколько положено.
+      const interval = this.intervalMs(ctx.buildings ?? 0, ctx.rateMult ?? 1);
+      this.acc = Math.min(this.acc, interval) + dtMs;
       while (this.acc + TIME_EPS >= interval) {
         this.acc -= interval;
         const e = this.spawn(ctx, null);

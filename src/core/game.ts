@@ -2,6 +2,7 @@ import { TIME_EPS } from './clock';
 import type { CardKind, CardRow, Tables } from './data/tables';
 import { Deck, type DeckContext, type DeckSnapshot, type OfferCard } from './deck';
 import { Enemies, type EnemiesContext, type EnemiesSnapshot } from './enemies';
+import { LocationEvents, type EventsSnapshot } from './events';
 import { Net, type CaughtItem, type NetSnapshot } from './net';
 import { Progression, type ProgressionSnapshot } from './progression';
 import { Raft, type Cell, type Spot } from './raft';
@@ -26,6 +27,8 @@ export interface GameSnapshot {
   secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
   /** Нет в записи до M1-06: башни встают по постройкам плота с готовыми сетями. */
   towers?: TowersSnapshot;
+  /** Нет в записи до M1-07: спокойное время с нуля, события нет. */
+  events?: EventsSnapshot;
 }
 
 /** Виды карточек в игре. */
@@ -44,6 +47,7 @@ export class Game {
   readonly spear: Spear;
   readonly enemies: Enemies;
   readonly towers: Towers;
+  readonly events: LocationEvents;
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
@@ -92,6 +96,7 @@ export class Game {
     this.weaponKey = tier.weaponKey;
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
     this.towers = new Towers(data, cfg.locationId, new Rng(cfg.seed + 4), this.stats);
+    this.events = new LocationEvents(data, cfg.locationId);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -116,6 +121,7 @@ export class Game {
       build: this.build && { ...this.build },
       weapon: this.weapon, spearOwned: this.spearOwned, hasWalked: this.hasWalked, secondCellMs: this.secondCellMs,
       mediumCaught: this.mediumCaught, pending: this.pending.slice(), hold: this.hold, towers: this.towers.snapshot(),
+      events: this.events.snapshot(),
     };
   }
 
@@ -142,6 +148,7 @@ export class Game {
     g.hold = s.hold;
     if (s.towers) g.towers.restore(s.towers);
     g.towers.sync(g.raft);
+    if (s.events) g.events.restore(s.events);
     return g;
   }
 
@@ -176,6 +183,9 @@ export class Game {
   step(dtMs: number): void {
     if (this.paused) return;
     this.stats.gameMs += dtMs;
+    // Множители события действуют уже в этом шаге.
+    this.events.step(dtMs, true);
+    this.world.flowMult = this.events.flowMult;
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
     if (caught) {
@@ -329,6 +339,11 @@ export class Game {
     if (this.enemies.spawnNow(this.enemiesContext(), at)) this.spearOwned = true;
   }
 
+  /** Отладка: событие локации сейчас (идёт — начинается заново); работает и на паузе. */
+  debugEvent(): void {
+    this.events.start();
+  }
+
   /** Отладка: урон клетке сейчас (центральная неуязвима), и на паузе; ответ — сколько снято. Не укус: в bites и cellDamage не идёт. */
   debugDamageCell(gx: number, gy: number, amount: number): number {
     return this.raft.damage(gx, gy, amount);
@@ -354,7 +369,7 @@ export class Game {
   private enemiesContext(): EnemiesContext {
     return {
       raft: this.raft, level: this.progression.level, ready: this.raft.cells.length >= 2 && this.mediumCaught,
-      buildings: this.raft.buildingCount(),
+      buildings: this.raft.buildingCount(), rateMult: this.events.enemyRateMult,
     };
   }
 

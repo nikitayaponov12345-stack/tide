@@ -69,6 +69,8 @@ export interface GameDebug {
     enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase }>;
     /** Сетевые башни: клетка и сети, caught — сколько предметов в сети. */
     towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
+    /** Событие локации: id (нет у локации — null), идёт ли, сколько осталось, спокойное время, сколько было. */
+    event: { id: string | null; active: boolean; leftMs: number; calmMs: number; count: number };
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -90,6 +92,8 @@ export interface GameDebug {
   debugLevelUp(): void;
   /** Краб сейчас, без условия и таймера (и на паузе); с точкой — в ней. Даёт копьё. */
   debugSpawnEnemy(x?: number, y?: number): void;
+  /** Событие локации сейчас (идёт — заново), и на паузе. */
+  debugEvent(): void;
   /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
   debugDamageCell(gx: number, gy: number, amount: number): number;
   /** Центр клетки плота в координатах окна (CSS-пиксели). */
