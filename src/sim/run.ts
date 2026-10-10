@@ -36,6 +36,9 @@ export interface SimResult {
   xp: { flow: number; loot: number; chest: number; boost: number };
   /** Точки межстраничной рекламы: в M0 рекламы нет, бот только считает. */
   adPoints: number;
+  /** Предложений буста за рекламу показано и взято (с M1-12). */
+  offers: number;
+  offersTaken: number;
 }
 
 /** Партия бота «человек» на одном сиде: горизонталь, Лагуна, до уровня untilLevel или maxGameMs игрового времени. */
@@ -65,8 +68,11 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     if (i >= maxIters) throw new Error(`runSim: сид ${seed} — предел шагов`);
     if (game.paused) {
       const isWindow = game.window !== null;
+      const isAd = game.ad;
       const { ms, card } = bot.pause();
       wallMs += ms;
+      // Реклама за награду тоже считается в перерыв межстраничной (ads.csv, window_close).
+      if (isAd) lastAdMs = wallMs;
       if (card !== null) cards[card] = (cards[card] ?? 0) + 1;
       if (isWindow) {
         windows++;
@@ -117,5 +123,7 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
       boost: s.boostFlowXp,
     },
     adPoints,
+    offers: game.boostOffer.shown,
+    offersTaken: game.boostOffer.taken,
   };
 }

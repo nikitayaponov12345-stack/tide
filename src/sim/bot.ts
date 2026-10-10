@@ -24,6 +24,9 @@ export interface BotParams {
   spearSigma: number;   // промах копья, σ по оси
   retryMs: number;      // цели нет — следующая попытка через столько
   bottleValue: number;  // бутылка в «кучке» стоит столько опыта: живой игрок ловит её сразу
+  boostTakeShare: number; // доля предложений буста за рекламу, которые бот берёт
+  offerNoticeMs: Span;  // заметить кнопку буста и нажать
+  adMs: Span;           // реклама за награду, по часам
 }
 
 /** Бот «человек»: GDD «Темп и баланс», TESTPLAN §5. */
@@ -37,6 +40,11 @@ export const HUMAN: BotParams = {
   spearSigma: 12,
   retryMs: 80,
   bottleValue: 30,
+  // Живой игрок взял буст в 3 предложениях из 7 (GDD, «Монетизация»); кнопку замечает, как краба;
+  // реклама за награду на записи ПК стояла 12,5–13,5 с.
+  boostTakeShare: 3 / 7,
+  offerNoticeMs: [500, 1000],
+  adMs: [12500, 13500],
 };
 
 /** Порядок карточек в окне: «Плот» и постройки первыми, как у живого игрока на записях. */
@@ -65,6 +73,9 @@ export class HumanBot {
   private pullDelay = 0;
   private crabAt: number | null = null;
   private walkAt: number | null = null;
+  /** Последнее замеченное предложение буста (boostOffer.shown) и когда его нажать; null — не нажимать. */
+  private offerSeen = 0;
+  private offerAt: number | null = null;
   private readonly flightMean: number;
 
   constructor(
@@ -81,6 +92,18 @@ export class HumanBot {
     const g = this.game;
     const p = this.params;
     const now = g.stats.gameMs;
+
+    const offer = g.boostOffer;
+    if (!offer.visible) {
+      this.offerAt = null;
+    } else if (offer.shown !== this.offerSeen) {
+      this.offerSeen = offer.shown;
+      if (this.rng.next() < p.boostTakeShare) this.offerAt = now + this.span(p.offerNoticeMs);
+    }
+    if (this.offerAt !== null && now + TIME_EPS >= this.offerAt) {
+      this.offerAt = null;
+      if (g.takeBoostOffer()) return;
+    }
 
     const crab = this.spearTarget();
     if (crab === null) {
@@ -132,10 +155,15 @@ export class HumanBot {
     }
   }
 
-  /** Окно или стройка: решение и сколько оно заняло по часам. */
+  /** Окно, стройка или реклама за награду: решение и сколько оно заняло по часам. */
   pause(): PauseResult {
     const g = this.game;
     this.release();
+    if (g.ad) {
+      const ms = this.span(this.params.adMs);
+      g.adDone(true);
+      return { ms, card: null };
+    }
     this.throwAt = null;
     this.pullAt = null;
     this.walkAt = null;

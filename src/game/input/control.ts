@@ -41,6 +41,22 @@ export class Control {
     if (this.shown === null) this.platform.gameplayStart();
   }
 
+  /**
+   * Реклама за награду: «игра остановлена» до неё (если игрок уже играл), «игра идёт» после, если нет окна выбора и паузы.
+   * Исключение при показе — «не досмотрена». Ответ — досмотрена ли.
+   */
+  async rewarded(show: () => Promise<boolean>): Promise<boolean> {
+    if (this.playing) this.platform.gameplayStop();
+    let ok = false;
+    try {
+      ok = await show();
+    } catch {
+      ok = false;
+    }
+    if (this.playing && this.stopper() === null) this.platform.gameplayStart();
+    return ok;
+  }
+
   /** То, что останавливает игру для площадки: окно выбора, иначе пауза, иначе null. */
   private stopper(): OfferWindow | typeof MENU | null {
     return this.game.window ?? (this.game.menu ? MENU : null);

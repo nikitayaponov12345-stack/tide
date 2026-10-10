@@ -29,6 +29,7 @@ export class Stats {
   bossDamage = 0;    // урон по шхуне на визитах
   bossChests = 0;    // сундуков выпало на визитах
   boostFlowXp = 0;   // опыт потока, пойманного под бустом (× сила локации); входит и в xpByRole
+  boostKills = 0;    // врагов, погибших от буста за рекламу (они же в enemiesKilled)
   /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
   readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
 

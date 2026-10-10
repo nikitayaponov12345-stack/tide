@@ -83,6 +83,7 @@ const CASES: Record<string, (g: Game) => boolean> = {
   bossBall: (g) => g.boss.balls.length > 0,
   bottle: (g) => g.boost.bottleId !== null,
   boost: (g) => g.boost.active,
+  boostOffer: (g) => g.boostOffer.visible,
 };
 
 describe('Снимок партии', () => {
@@ -93,7 +94,7 @@ describe('Снимок партии', () => {
     expect(viaJson(load(s).snapshot())).toEqual(s);
   });
 
-  it('продолжение с записи в любом из пятнадцати случаев идёт так же, как прогон без перерыва', () => {
+  it('продолжение с записи в любом из шестнадцати случаев идёт так же, как прогон без перерыва', () => {
     const g = new Game(DATA, CFG);
     const saves: Array<{ name: string; at: number; snap: GameSnapshot }> = [];
     for (let t = 0; t < RUN_TACTS; t++) {

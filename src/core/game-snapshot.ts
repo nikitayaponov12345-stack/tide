@@ -1,5 +1,6 @@
 import type { BossSnapshot } from './boss';
 import type { BoostSnapshot } from './boost';
+import type { BoostOfferSnapshot } from './boost-offer';
 import type { DeckSnapshot } from './deck';
 import type { EnemiesSnapshot } from './enemies';
 import type { EventsSnapshot } from './events';
@@ -29,6 +30,8 @@ export interface GameSnapshot {
   spearTowers?: SpearTowersSnapshot;
   /** Нет в записи до M1-11: буста нет, бутылку не ловили. */
   boost?: BoostSnapshot;
+  /** Нет в записи до M1-12: предложения с начала, первое — через first_after_s игры после загрузки. */
+  boostOffer?: BoostOfferSnapshot;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -42,7 +45,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     build: g.build && { ...g.build },
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
-    spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(),
+    spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(), boostOffer: g.boostOffer.snapshot(),
   };
 }
 
@@ -70,4 +73,5 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   if (s.events) g.events.restore(s.events);
   if (s.boss) g.boss.restore(s.boss);
   if (s.boost) g.boost.restore(s.boost);
+  if (s.boostOffer) g.boostOffer.restore(s.boostOffer);
 }

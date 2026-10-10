@@ -47,14 +47,15 @@ export class Boost {
 
   /**
    * Шаг: буст убывает. Бутылки ещё не ловили, враг уже побеждён, бутылки нет ни в сети (inNet), ни в воде — всплывает новая
-   * у плота. Броски: угол, расстояние, скорость, фаза.
+   * у плота. offered (M1-12) — уже было предложение буста за рекламу: новая не всплывает, та, что уже в воде, остаётся.
+   * Броски: угол, расстояние, скорость, фаза.
    */
-  step(dtMs: number, enemiesKilled: number, inNet: boolean): void {
+  step(dtMs: number, enemiesKilled: number, inNet: boolean, offered = false): void {
     if (this.active) {
       this.leftMs -= dtMs;
       if (this.leftMs <= TIME_EPS) this.leftMs = 0;
     }
-    if (this.bottleCaught || this.bottleKind === null || enemiesKilled < 1 || inNet) return;
+    if (this.bottleCaught || this.bottleKind === null || enemiesKilled < 1 || inNet || offered) return;
     if (this.bottleId !== null && this.world.items.some((it) => it.id === this.bottleId)) return;
     const d = this.data;
     const angle = this.rng.range(0, 2 * Math.PI);

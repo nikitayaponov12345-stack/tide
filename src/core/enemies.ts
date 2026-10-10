@@ -136,6 +136,14 @@ export class Enemies {
     return out;
   }
 
+  /** Все враги на поле гибнут сразу, без добычи (буст за рекламу); они идут в enemiesKilled. Ответ — сколько. */
+  killAll(): number {
+    const n = this.list.length;
+    this.list.length = 0;
+    this.stats.enemiesKilled += n;
+    return n;
+  }
+
   /** Новый враг: случайный край за полем (или точка), цель — самая дальняя целая клетка, кроме центральной, прочность по уровню. Броски: край, место, прочность. */
   private spawn(ctx: EnemiesContext, at: { x: number; y: number } | null): Enemy {
     let x: number;

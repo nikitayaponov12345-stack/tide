@@ -52,6 +52,8 @@ export interface GameDebug {
       bossShots: number; bossCellDamage: number; bossDamage: number; bossChests: number;
       /** Опыт потока, пойманного под бустом (× сила локации). */
       boostFlowXp: number;
+      /** Врагов, погибших от буста за рекламу (они же в enemiesKilled). */
+      boostKills: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -91,6 +93,13 @@ export interface GameDebug {
     };
     /** Буст: идёт ли, сколько осталось, поймана ли бутылка, бутылка в воде (координаты мира; нет — null). */
     boost: { active: boolean; leftMs: number; bottleCaught: boolean; bottle: null | { x: number; y: number } };
+    /**
+     * Предложение буста за рекламу: есть ли реклама за награду, видна ли кнопка и сколько ещё, игровое время предложения,
+     * с какого времени следующее, сколько показано и взято.
+     */
+    boostOffer: { enabled: boolean; visible: boolean; leftMs: number; ms: number; nextMs: number; shown: number; taken: number };
+    /** Идёт реклама за награду: мир стоит. */
+    ad: boolean;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -118,6 +127,8 @@ export interface GameDebug {
   debugBossVisit(side?: BossSide): void;
   /** Буст на ms (нет — как от бутылки), и на паузе; идёт — время прибавляется. */
   debugBoost(ms?: number): void;
+  /** Кнопка буста за рекламу сейчас, без таймера и условий (и на паузе); рекламы за награду нет — false. */
+  debugBoostOffer(): boolean;
   /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
   debugDamageCell(gx: number, gy: number, amount: number): number;
   /** Постройка id на целую свободную клетку без карточки (и на паузе); нельзя — false. */

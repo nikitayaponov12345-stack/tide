@@ -38,6 +38,11 @@ export class StubPlatform implements Platform {
     return true;
   }
 
+  /** Есть всегда, кроме rewarded=0 в адресе. */
+  rewardedAvailable(): boolean {
+    return new URLSearchParams(location.search).get('rewarded') !== '0';
+  }
+
   async save(key: string, data: string): Promise<void> {
     try {
       localStorage.setItem(key, data);

@@ -15,6 +15,8 @@ export interface Platform {
   showInterstitial(): Promise<void>;
   /** Реклама за вознаграждение: true — досмотрена, награду выдавать. */
   showRewarded(): Promise<boolean>;
+  /** Есть ли у площадки реклама за вознаграждение; нет — кнопок «за рекламу» в игре нет (GDD, «Монетизация»). */
+  rewardedAvailable(): boolean;
   save(key: string, data: string): Promise<void>;
   load(key: string): Promise<string | null>;
   /** Код языка: 'ru', 'en'. */

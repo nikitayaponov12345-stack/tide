@@ -76,8 +76,8 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
     '',
     '## Прогоны',
     '',
-    '| Сид | 2 | 10 | 20 | 40 | Уровень в конце | Предметов на бросок | Опыт: поток / добыча / сундуки / буст | Реклама за 10 мин | Доля игрового времени | Клеток | Крабы: убито / ушло |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Сид | 2 | 10 | 20 | 40 | Уровень в конце | Предметов на бросок | Опыт: поток / добыча / сундуки / буст | Реклама за 10 мин | Буст за рекламу: показан / взят | Доля игрового времени | Клеток | Крабы: убито / ушло |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   );
   for (const r of curve) {
     const times = MARK_LEVELS.map((l) => levelTime(l, r.levelGameMs[l] ?? null));
@@ -86,7 +86,7 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
     const perThrow = r.throws > 0 ? num(r.itemsCaught / r.throws, 2) : '—';
     const ads = r.wallMs > 0 ? num((r.adPoints * 600_000) / r.wallMs, 1) : '—';
     out.push(
-      `| ${r.seed} | ${times.join(' | ')} | ${r.level} | ${perThrow} | ${shares} | ${ads} | ${pct(r.gameMs, r.wallMs)} | ${r.cells} | ${r.enemiesKilled} / ${r.enemiesEscaped} |`,
+      `| ${r.seed} | ${times.join(' | ')} | ${r.level} | ${perThrow} | ${shares} | ${ads} | ${r.offers} / ${r.offersTaken} | ${pct(r.gameMs, r.wallMs)} | ${r.cells} | ${r.enemiesKilled} / ${r.enemiesEscaped} |`,
     );
   }
   out.push('', 'Время уровней в строках прогонов — игровое; по часам — в таблице кривой.', '');

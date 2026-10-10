@@ -13,6 +13,7 @@ import { parseSettings, SETTINGS_KEY } from './game/settings';
 import { Stage } from './game/stage';
 import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
+import { BoostOfferButton } from './ui/boost-offer';
 import { CardWindow } from './ui/cards';
 import { WalkHint } from './ui/hint';
 import { Hud } from './ui/hud';
@@ -23,7 +24,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.18';
+const VERSION = '0.0.19';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -55,7 +56,7 @@ async function boot(): Promise<void> {
   }
   const saved = await platform.load(SAVE_KEY);
   const newer = isNewerSave(saved);
-  const cfg = { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED };
+  const cfg = { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED, rewarded: platform.rewardedAvailable() };
   let restored: Game | null = null;
   const run = parseSave(saved)?.run;
   if (run && run.locationId === LOCATION) {
@@ -112,6 +113,10 @@ async function boot(): Promise<void> {
   const cursor = new BuildCursor(cellPx);
   const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
+  const boostOffer = new BoostOfferButton(ui, game, text, () => {
+    if (!game.takeBoostOffer()) return;
+    void control.rewarded(() => platform.showRewarded()).then((ok) => game.adDone(ok));
+  });
   const hint = new WalkHint(ui, game, text);
   const plaque = resumed
     ? new ResumePlaque(
@@ -156,6 +161,7 @@ async function boot(): Promise<void> {
     hint.update(stage.layout);
     slots.update(stage.layout);
     repair.update(stage.layout);
+    boostOffer.update(stage.layout);
     plaque?.update(stage.layout, performance.now());
     overlay.update(
       performance.now(),
@@ -221,6 +227,10 @@ async function boot(): Promise<void> {
         active: game.boost.active, leftMs: game.boost.leftMs, bottleCaught: game.boost.bottleCaught,
         bottle: ((it) => (it ? { x: it.x, y: it.y } : null))(world.items.find((i) => i.id === game.boost.bottleId)),
       },
+      boostOffer: ((o) => ({ enabled: o.enabled, visible: o.visible, leftMs: o.leftMs, ms: o.ms, nextMs: o.nextMs, shown: o.shown, taken: o.taken }))(
+        game.boostOffer,
+      ),
+      ad: game.ad,
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
@@ -237,6 +247,7 @@ async function boot(): Promise<void> {
     debugEvent: () => game.debugEvent(),
     debugBossVisit: (side) => game.debugBossVisit(side),
     debugBoost: (ms) => game.debugBoost(ms),
+    debugBoostOffer: () => game.debugBoostOffer(),
     debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),
     debugBuild: (gx, gy, id) => game.debugBuild(gx, gy, id),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),

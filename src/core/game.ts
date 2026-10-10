@@ -1,5 +1,6 @@
 import { BossVisits, type BossSide } from './boss';
 import { BOTTLE_ROLE, Boost } from './boost';
+import { BoostOffer } from './boost-offer';
 import { TIME_EPS } from './clock';
 import { FLOW_ROLES, type CardKind, type Tables } from './data/tables';
 import { Deck, type OfferCard } from './deck';
@@ -18,7 +19,8 @@ import { Stats } from './stats';
 import { Towers } from './towers';
 import { World } from './world';
 
-export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
+/** rewarded — у площадки есть реклама за награду (нет поля — есть). */
+export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean }
 /** Окно выбора уровня level; на каждое окно — новый объект. */
 export interface OfferWindow { level: number; cards: OfferCard[] }
 export type Weapon = 'net' | 'spear';
@@ -43,6 +45,7 @@ export class Game {
   readonly events: LocationEvents;
   readonly boss: BossVisits;
   readonly boost: Boost;
+  readonly boostOffer: BoostOffer;
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
@@ -54,6 +57,8 @@ export class Game {
   menu = false;
   /** Режим ремонта: мир стоит, нажатия по клеткам чинят. В снимок не входит: после загрузки игра идёт. */
   repair = false;
+  /** Идёт реклама за награду: мир стоит. В снимок не входит: после загрузки рекламы нет и награды нет. */
+  ad = false;
   /** Выбранный слот оружия. */
   weapon: Weapon = 'net';
   /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». */
@@ -99,6 +104,7 @@ export class Game {
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
     this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
+    this.boostOffer = new BoostOffer(data, cfg.rewarded ?? true);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -126,9 +132,9 @@ export class Game {
     return g;
   }
 
-  /** Открыто окно выбора, идёт стройка, открыта пауза или идёт ремонт: мир стоит. */
+  /** Открыто окно выбора, идёт стройка, открыта пауза, идёт ремонт или реклама: мир стоит. */
   get paused(): boolean {
-    return this.window !== null || this.build !== null || this.menu || this.repair;
+    return this.window !== null || this.build !== null || this.menu || this.repair || this.ad;
   }
 
   /** Окно паузы. Уровень, набранный до неё, открывает окно на первом шаге после. */
@@ -159,9 +165,11 @@ export class Game {
     this.stats.gameMs += dtMs;
     // Событие, визит и буст — первыми: их множители действуют уже в этом шаге.
     // Спокойное время события копится без визита и буста, визита — без события и буста.
+    // Предложение буста за рекламу — не в событие, не в визит и не под бустом; после первого предложения бутылок больше нет.
     this.events.step(dtMs, !this.boss.visiting && !this.boost.active);
     this.boss.step(dtMs, !this.events.active && !this.boost.active, this.events.count, this.raft);
-    this.boost.step(dtMs, this.stats.enemiesKilled, this.bottleInNet());
+    this.boostOffer.step(dtMs, !this.events.active && !this.boss.visiting && !this.boost.active);
+    this.boost.step(dtMs, this.stats.enemiesKilled, this.bottleInNet(), this.boostOffer.shown > 0);
     this.world.flowMult = this.events.flowMult * (this.boost.active ? this.boost.flowMult : 1);
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
@@ -182,6 +190,24 @@ export class Game {
     this.stats.xpGained += this.progression.step(this.world.timeMs);
     collectLevelUps(this);
     openNext(this);
+  }
+
+  /** Нажатие на кнопку буста за рекламу: она гаснет, мир стоит до adDone. Пауза или кнопки нет → false. */
+  takeBoostOffer(): boolean {
+    if (this.paused || !this.boostOffer.take()) return false;
+    this.ad = true;
+    return true;
+  }
+
+  /** Реклама кончилась; досмотрена (rewarded) — буст на boost_ad_s, враги на поле гибнут без добычи. Рекламы нет → false. */
+  adDone(rewarded: boolean): boolean {
+    if (!this.ad) return false;
+    this.ad = false;
+    if (rewarded) {
+      this.boost.start(this.boostOffer.adBoostMs);
+      this.stats.boostKills += this.enemies.killAll();
+    }
+    return true;
   }
 
   /** Выбранное оружие можно бросить: не пауза и оно у моряка. */
@@ -312,6 +338,11 @@ export class Game {
   /** Отладка: буст на ms (нет — как от бутылки); идёт — время прибавляется. Работает и на паузе. */
   debugBoost(ms?: number): void {
     this.boost.start(ms ?? this.boost.bottleMs);
+  }
+
+  /** Отладка: кнопка буста за рекламу сейчас, без таймера и условий, и на паузе. Рекламы за награду нет → false. */
+  debugBoostOffer(): boolean {
+    return this.boostOffer.show();
   }
 
   /** Отладка: урон клетке сейчас (центральная неуязвима), и на паузе; ответ — сколько снято. Не укус: в bites и cellDamage не идёт. */
