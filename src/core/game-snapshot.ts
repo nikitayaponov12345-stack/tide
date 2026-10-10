@@ -4,7 +4,9 @@ import type { BoostOfferSnapshot } from './boost-offer';
 import type { DeckSnapshot } from './deck';
 import type { EnemiesSnapshot } from './enemies';
 import type { EventsSnapshot } from './events';
+import type { FinalBossSnapshot } from './final-boss';
 import type { Game, OfferWindow, Weapon } from './game';
+import { levelCap } from './game-threats';
 import type { NetSnapshot } from './net';
 import type { ProgressionSnapshot } from './progression';
 import type { Cell } from './raft';
@@ -35,6 +37,10 @@ export interface GameSnapshot {
   boostOffer?: BoostOfferSnapshot;
   /** Нет в записи до M1-13: радиус яруса; воронки встают по постройкам плота. */
   whirlpools?: WhirlpoolsSnapshot;
+  /** Финальный бой (с M1-15); в записи до M1-15 поля нет — боя ещё не было, на level_to_clear и выше он начнётся сразу. */
+  finalBoss?: FinalBossSnapshot;
+  /** Открыто окно «Локация пройдена» (с M1-15); нет поля — закрыто. */
+  cleared?: boolean;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -49,7 +55,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
     spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(), boostOffer: g.boostOffer.snapshot(),
-    whirlpools: g.whirlpools.snapshot(),
+    whirlpools: g.whirlpools.snapshot(), finalBoss: g.finalBoss.snapshot(), cleared: g.cleared,
   };
 }
 
@@ -79,4 +85,7 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   if (s.boss) g.boss.restore(s.boss);
   if (s.boost) g.boost.restore(s.boost);
   if (s.boostOffer) g.boostOffer.restore(s.boostOffer);
+  if (s.finalBoss) g.finalBoss.restore(s.finalBoss);
+  g.cleared = s.cleared ?? false;
+  g.progression.maxLevel = levelCap(g);
 }

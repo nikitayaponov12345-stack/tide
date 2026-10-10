@@ -3,7 +3,7 @@ import { ROLES, type Role } from './data/tables';
 /** Снимок счётчиков: все числовые поля Stats и xpByRole. */
 export type StatsSnapshot = { [K in keyof Stats as Stats[K] extends number ? K : never]: number } & { xpByRole: Record<Role, number> };
 
-/** Счётчики для бота и отладки. Пишут Game, Enemies, Towers, SpearTowers и BossVisits. */
+/** Счётчики для бота и отладки. Пишут Game, Enemies, Towers, SpearTowers, BossVisits и FinalBoss. */
 export class Stats {
   throws = 0;        // успешные throwTo
   emptyThrows = 0;   // сеть вернулась пустой
@@ -31,6 +31,11 @@ export class Stats {
   bossChests = 0;    // сундуков выпало на визитах
   boostFlowXp = 0;   // опыт потока, пойманного под бустом (× сила локации); входит и в xpByRole
   boostKills = 0;    // врагов, погибших от буста за рекламу (они же в enemiesKilled)
+  finalFightMs = 0;  // игровое время финального боя
+  finalDamage = 0;   // урон по финальному боссу
+  finalStrikes = 0;  // его ударов по клеткам
+  finalCellDamage = 0; // прочности клеток снято его ударами
+  bigChestXp = 0;    // опыт большого сундука, × сила локации; он же в xpGained
   /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
   readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
 

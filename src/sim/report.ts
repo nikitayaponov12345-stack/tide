@@ -3,6 +3,9 @@ import { MARK_LEVELS, type SimResult } from './run';
 /** Ворота M0: 2-й уровень — не дольше этого по медиане (ROADMAP, TESTPLAN §5). */
 export const GATE_L2_MS = 10_000;
 
+/** Цель длительности финального боя: GDD, «Боссы» — бой 35–60 с. */
+export const FIGHT_TARGET_MS = [35_000, 60_000] as const;
+
 export interface GateResult { games: number; medianMs: number; p90Ms: number; maxMs: number; over: number; passed: boolean }
 
 function sorted(xs: readonly number[]): number[] {
@@ -72,6 +75,7 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
     const m = (xs: number[]): string => (xs.length > 0 ? levelTime(l, median(xs)) : '—');
     out.push(`| ${l} | ${game.length} из ${curve.length} | ${m(game)} | ${m(wall)} |`);
   }
+  out.push(...fightSection(curve));
   out.push(
     '',
     '## Прогоны',
@@ -91,4 +95,44 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
   }
   out.push('', 'Время уровней в строках прогонов — игровое; по часам — в таблице кривой.', '');
   return out.join('\n');
+}
+
+/** Раздел «Финальный бой»: итоги и строка на прогон. */
+function fightSection(curve: readonly SimResult[]): string[] {
+  const won = curve.filter((r) => r.fightMs !== null);
+  const fights = won.map((r) => r.fightMs!);
+  const [lo, hi] = FIGHT_TARGET_MS;
+  const inTarget = fights.filter((ms) => ms + 1e-9 >= lo && ms <= hi + 1e-9).length;
+  const waits = curve.map(fightWait).filter((x): x is number => x !== null);
+  const clearedGame = curve.map((r) => r.clearedGameMs).filter((x): x is number => x !== null);
+  const clearedWall = curve.map((r) => r.clearedWallMs).filter((x): x is number => x !== null);
+  const s0 = (ms: number): string => `${num(ms / 1000, 0)} с`;
+  const range = fights.length > 0 ? ` (${num(Math.min(...fights) / 1000, 0)}–${s0(Math.max(...fights))})` : '';
+  const out = [
+    '',
+    '## Финальный бой',
+    '',
+    `Прошли локацию: ${won.length} из ${curve.length}. Бой: медиана ${fights.length > 0 ? s0(median(fights)) : '—'}${range}, ` +
+      `в цели ${num(lo / 1000, 0)}–${s0(hi)} — ${inTarget}. От ${MARK_LEVELS[MARK_LEVELS.length - 1]}-го уровня до начала боя: медиана ` +
+      `${waits.length > 0 ? s0(median(waits)) : '—'}, худшая ${waits.length > 0 ? s0(Math.max(...waits)) : '—'}. ` +
+      `«Локация пройдена»: медиана ${clearedGame.length > 0 ? min(median(clearedGame)) : '—'} игрового времени ` +
+      `(${clearedWall.length > 0 ? min(median(clearedWall)) : '—'} по часам).`,
+    '',
+    '| Сид | Ждал боя | Бой | Ударов по клеткам | Снято прочности | Пройдена, по часам |',
+    '| --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const r of curve) {
+    const wait = fightWait(r);
+    out.push(
+      `| ${r.seed} | ${wait === null ? '—' : s0(wait)} | ${r.fightMs === null ? '—' : s0(r.fightMs)} | ${r.finalStrikes} | ` +
+        `${num(r.finalCellDamage, 0)} | ${r.clearedWallMs === null ? '—' : min(r.clearedWallMs)} |`,
+    );
+  }
+  return out;
+}
+
+/** От последнего отмеченного уровня (level_to_clear) до начала боя, игровое время; нет одного из двух — null. */
+function fightWait(r: SimResult): number | null {
+  const at = r.levelGameMs[MARK_LEVELS[MARK_LEVELS.length - 1]!] ?? null;
+  return at === null || r.fightStartGameMs === null ? null : Math.max(0, r.fightStartGameMs - at);
 }

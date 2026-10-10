@@ -4,15 +4,17 @@ import type { Platform } from '../../platform/platform';
 
 /** Метка открытой паузы для сравнения с показанным окном. */
 const MENU = {};
+/** Метка окна «Локация пройдена» (M1-15). */
+const CLEARED = {};
 
 /**
  * Шаги ядра в игровом времени и сигналы площадке, как у оригинала: первое нажатие — «игра идёт»,
- * окно выбора или пауза открылись — «игра остановлена», закрылись — «игра идёт» (даже если дальше стройка).
+ * окно выбора, «Локация пройдена» (M1-15) или пауза открылись — «игра остановлена», закрылись — «игра идёт» (даже если дальше стройка).
  * Сигналы — только после первого нажатия игрока.
  */
 export class Control {
   private playing = false;
-  private shown: OfferWindow | typeof MENU | null = null;
+  private shown: OfferWindow | typeof MENU | typeof CLEARED | null = null;
   private readonly clock = new FixedStep();
 
   constructor(
@@ -59,8 +61,8 @@ export class Control {
     return ok;
   }
 
-  /** То, что останавливает игру для площадки: окно выбора, иначе пауза, иначе null. */
-  private stopper(): OfferWindow | typeof MENU | null {
-    return this.game.window ?? (this.game.menu ? MENU : null);
+  /** То, что останавливает игру для площадки: окно выбора, иначе «Локация пройдена», иначе пауза, иначе null. */
+  private stopper(): OfferWindow | typeof MENU | typeof CLEARED | null {
+    return this.game.window ?? (this.game.cleared ? CLEARED : this.game.menu ? MENU : null);
   }
 }

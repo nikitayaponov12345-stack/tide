@@ -1,6 +1,7 @@
 import type { BossBall, BossSide } from './core/boss';
 import type { Role } from './core/data/tables';
 import type { EnemyPhase } from './core/enemies';
+import type { FinalPhase } from './core/final-boss';
 import type { Weapon } from './core/game';
 import type { NetState } from './core/net';
 import type { SpearState } from './core/spear';
@@ -56,6 +57,10 @@ export interface GameDebug {
       boostFlowXp: number;
       /** Врагов, погибших от буста за рекламу (они же в enemiesKilled). */
       boostKills: number;
+      /** Финальный бой: игровое время боя, урон по боссу, его удары по клеткам и снятая ими прочность. */
+      finalFightMs: number; finalDamage: number; finalStrikes: number; finalCellDamage: number;
+      /** Опыт большого сундука (× сила локации; он же в xpGained). */
+      bigChestXp: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -106,6 +111,18 @@ export interface GameDebug {
     ad: boolean;
     /** Воронка открыта рекламой на всю кампанию (M1-14). */
     whirlpoolUnlocked: boolean;
+    /**
+     * Финальный бой (M1-15): id босса (нет у локации — null), фаза, сторона, середина и радиус (координаты мира), прочность,
+     * клетка цели, остаток стоянки или нырка, уровень боя и опыт большого сундука.
+     */
+    finalBoss: {
+      id: string | null; phase: FinalPhase; side: BossSide; x: number; y: number; radius: number; hp: number; maxHp: number;
+      targetGx: number; targetGy: number; leftMs: number; level: number; chestXp: number;
+    };
+    /** Открыто окно «Локация пройдена». */
+    cleared: boolean;
+    /** Выше этого уровень не растёт; без предела — null. */
+    levelCap: number | null;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -131,6 +148,10 @@ export interface GameDebug {
   debugEvent(): void;
   /** Визит босса сейчас вдоль стороны side (нет — случайной), и на паузе; идёт визит — ничего. */
   debugBossVisit(side?: BossSide): void;
+  /** Финальный бой сейчас: всплытие у side (нет — где воды больше), и на паузе; бой уже был — ничего. */
+  debugFinalBoss(side?: BossSide): void;
+  /** Прочность финального босса сейчас (не выше полной); только в бою и при hp > 0. */
+  debugFinalBossHp(hp: number): void;
   /** Буст на ms (нет — как от бутылки), и на паузе; идёт — время прибавляется. */
   debugBoost(ms?: number): void;
   /** Кнопка буста за рекламу сейчас, без таймера и условий (и на паузе); рекламы за награду нет — false. */

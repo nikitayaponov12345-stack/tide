@@ -183,6 +183,20 @@ describe('Снимок партии', () => {
     expect(viaJson(r.snapshot())).toEqual(viaJson(g.snapshot()));
   });
 
+  it('финальный бой (M1-15): продолжение с записи, сделанной в нырке краба, идёт так же, как без перерыва', () => {
+    const g = new Game(DATA, CFG);
+    g.setLevel(DATA.num('level_to_clear'));
+    for (let i = 0; i < 600; i++) tact(g);
+    stepWhile(g, () => g.finalBoss.phase !== 'dive');
+    const snap = viaJson(g.snapshot());
+    expect(snap.finalBoss!.phase).toBe('dive');
+    for (let i = 0; i < 3000; i++) tact(g);
+    const r = load(snap);
+    for (let i = 0; i < 3000; i++) tact(r);
+    expect(viaJson(r.snapshot())).toEqual(viaJson(g.snapshot()));
+    expect(g.stats.finalStrikes).toBeGreaterThan(1);
+  });
+
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {
     const g = new Game(DATA, CFG);
     g.debugLevelUp();
@@ -246,6 +260,22 @@ describe('Запись: makeSave, parseSave, isNewerSave', () => {
     expect(s.run).toMatchObject({ locationId: 'lagoon', seed: 7 });
     expect(viaJson(s.run!.game)).toEqual(viaJson(g.snapshot()));
     expect(parseSave(text(s))).toEqual(viaJson(s));
+  });
+
+  it('кампания: после победы в финальном бою локация — в passed (M1-15)', () => {
+    const g = new Game(DATA, CFG);
+    g.setLevel(DATA.num('level_to_clear'));
+    g.step(STEP_MS);
+    expect(makeSave(g, 'lagoon', 1).campaign.passed).toEqual([]);
+    g.finalBoss.debugHp(1);
+    g.spearOwned = true;
+    g.setWeapon('spear');
+    expect(g.throwTo(g.finalBoss.x, g.finalBoss.y)).toBe(true);
+    stepWhile(g, () => !g.cleared);
+    const s = makeSave(g, 'lagoon', 1);
+    expect(s.campaign.passed).toEqual(['lagoon']);
+    expect(s.rating).toBe(g.stats.xpGained);
+    expect(s.run!.game.cleared).toBe(true);
   });
 
   it('parseSave: null на пустом тексте, не JSON, массиве, плохой версии и плохом run', () => {

@@ -85,4 +85,26 @@ describe('Control', () => {
     expect(await control.rewarded(async () => true)).toBe(true);
     expect(calls).toEqual(['start', 'stop', 'start', 'stop']);
   });
+
+  it('Локация пройдена (M1-15): окно — stop, «Играть дальше» — start; пауза поверх окна не открывается', () => {
+    const { game, control, calls } = setup();
+    control.notePlay();
+    game.setLevel(DATA.num('level_to_clear'));
+    control.frame(STEP_MS);
+    expect(game.finalBoss.phase).toBe('crawl');
+    game.finalBoss.debugHp(1);
+    game.spearOwned = true;
+    game.setWeapon('spear');
+    game.throwTo(game.finalBoss.x, game.finalBoss.y);
+    for (let i = 0; i < 600 && !game.cleared; i++) control.frame(STEP_MS);
+    expect(game.cleared).toBe(true);
+    expect(calls).toEqual(['start', 'stop']);
+    game.setMenu(true);
+    expect(game.menu).toBe(false);
+    control.frame(STEP_MS);
+    expect(calls).toEqual(['start', 'stop']);
+    expect(game.playOn()).toBe(true);
+    control.frame(STEP_MS);
+    expect(calls).toEqual(['start', 'stop', 'start']);
+  });
 });

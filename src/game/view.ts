@@ -39,6 +39,8 @@ const SPEAR_COLOR = 0xf1e3c8;
 /** Шхуна на визите: корпус, палуба с отступом, мачта; ядра — тёмные круги с белой обводкой. */
 const SHIP = { hull: 0x4a2c17, hullRound: 24, deck: 0x7a4a2a, deckInset: 10, deckRound: 14, mast: 0xf1e3c8, mastRadius: 8 } as const;
 const BALL = { color: 0x1a1a1a, radius: 7, stroke: { width: 1, color: 0xffffff } } as const;
+/** Краб-великан (заготовка до арта, M4): тело, обводка; клешни — круги в долях радиуса, впереди к плоту и в стороны. */
+const GIANT = { body: 0x9d0208, claw: 0xd62828, rim: { width: 3, color: 0xffffff, alpha: 0.7 }, clawRadius: 0.4, clawAhead: 0.8, clawSpread: 0.75 } as const;
 /** Сеть башни: верёвка от клетки башни и круг сети. */
 const TOWER_NET = { rope: { width: 1.5, color: 0x9fe3d6, alpha: 0.8 }, ring: { width: 2, color: 0x9fe3d6 } } as const;
 /** Копьё копейной башни: черта от клетки башни и наконечник. */
@@ -55,7 +57,7 @@ export interface ViewOptions {
 
 /**
  * Рабочая отрисовка: вода, плот с постройками (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
- * шхуна с ядрами, сеть и копьё с верёвкой, сети башен, значки опыта.
+ * шхуна с ядрами и краб-великан, сеть и копьё с верёвкой, сети башен, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
 export class View {
@@ -76,6 +78,8 @@ export class View {
   private readonly enemyHp = new Container();
   /** Шхуна на визите и её ядра. */
   private readonly boss = new Graphics();
+  /** Краб-великан над водой. */
+  private readonly finalBoss = new Graphics();
   private readonly icons = new Graphics();
   private readonly counter = new Text({ text: '', style: LABEL_STYLE });
   private iconTargetY = 0;
@@ -85,7 +89,7 @@ export class View {
     private readonly opts: ViewOptions,
   ) {
     this.counter.anchor.set(0.5, 1);
-    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.boss, this.net, this.spear, this.sailor, this.counter, this.icons);
+    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.boss, this.finalBoss, this.net, this.spear, this.sailor, this.counter, this.icons);
     this.world.mask = this.field;
     this.dark.visible = false;
     root.addChild(this.sea, this.dark, this.field, this.world);
@@ -137,6 +141,7 @@ export class View {
 
     this.syncEnemies(game);
     this.syncBoss(game);
+    this.syncFinalBoss(game);
 
     this.spear.clear();
     const sp = game.spear;
@@ -229,6 +234,23 @@ export class View {
         .circle(b.x, b.y, SHIP.mastRadius).fill(SHIP.mast);
     }
     for (const ball of b.balls) this.boss.circle(ball.x, ball.y, BALL.radius).fill(BALL.color).stroke(BALL.stroke);
+  }
+
+  /** Краб-великан над водой: две клешни к центру плота, поверх — тело. Под водой не рисуется. */
+  private syncFinalBoss(game: Game): void {
+    const b = game.finalBoss;
+    this.finalBoss.clear();
+    if (!b.present) return;
+    const r = b.radius;
+    const len = Math.hypot(b.x, b.y) || 1;
+    const fx = -b.x / len;
+    const fy = -b.y / len;
+    for (const s of [-1, 1]) {
+      const cx = b.x + fx * GIANT.clawAhead * r - fy * s * GIANT.clawSpread * r;
+      const cy = b.y + fy * GIANT.clawAhead * r + fx * s * GIANT.clawSpread * r;
+      this.finalBoss.circle(cx, cy, GIANT.clawRadius * r).fill(GIANT.claw).stroke(GIANT.rim);
+    }
+    this.finalBoss.circle(b.x, b.y, r).fill(GIANT.body).stroke(GIANT.rim);
   }
 
   /** Клетка сетки (gx, gy) со скруглением, в координатах мира. */

@@ -12,6 +12,11 @@ export class Progression {
   xp = 0;
   readonly icons: Icon[] = [];
   readonly levelUps: number[] = [];
+  /**
+   * Выше этого уровень не растёт (M1-15: до победы в финальном бою — level_to_clear); полоса на нём стоит полной,
+   * лишний опыт идёт только в рейтинг. Задаёт Game; в снимок не входит.
+   */
+  maxLevel = Infinity;
   private readonly interval: number;
   private readonly flight: number;
 
@@ -51,14 +56,15 @@ export class Progression {
     return gained;
   }
 
-  /** Прибавить опыт; каждый новый уровень уходит в levelUps. */
+  /** Прибавить опыт; каждый новый уровень уходит в levelUps. На maxLevel полоса стоит полной. */
   addXp(amount: number): void {
     this.xp += amount;
-    while (this.xp >= this.xpToNext()) {
+    while (this.level < this.maxLevel && this.xp >= this.xpToNext()) {
       this.xp -= this.xpToNext();
       this.level += 1;
       this.levelUps.push(this.level);
     }
+    if (this.level >= this.maxLevel) this.xp = Math.min(this.xp, this.xpToNext());
   }
 
   takeLevelUps(): number[] {

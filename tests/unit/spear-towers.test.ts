@@ -55,7 +55,7 @@ function crab(s: Setup, x: number, y: number) {
 }
 
 const tower = (s: Setup): SpearTower => s.towers.list[0]!;
-const step = (s: Setup): void => s.towers.step(STEP_MS, s.enemies, s.boss, s.targets, s.raft);
+const step = (s: Setup): void => s.towers.step(STEP_MS, s.enemies, [s.boss], s.targets, s.raft);
 
 const ctxOf = (freeCells: number, bossVisitSeen: boolean): DeckContext => ({
   freeCells, canAddCell: true, has: () => false, spearOwned: true, bossVisitSeen,

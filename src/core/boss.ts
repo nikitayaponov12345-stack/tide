@@ -159,6 +159,11 @@ export class BossVisits {
     this.chests = 0;
   }
 
+  /** Шхуна на поле: её видно и можно бить (цель копья, как у финального босса). */
+  get present(): boolean {
+    return this.visiting;
+  }
+
   /** Ближайшая к (x, y) точка корпуса. */
   nearestPoint(x: number, y: number): { x: number; y: number } {
     return {
@@ -167,7 +172,7 @@ export class BossVisits {
     };
   }
 
-  /** Удар по шхуне ближе reach к корпусу: весь урон, сундуки по накопленному урону визита. Не визит — мимо. */
+  /** Удар по шхуне ближе reach к корпусу: весь урон, сундуки по накопленному урону визита. Не визит — мимо (финального боя у шхуны нет — решение Никиты 11.10). */
   hit(x: number, y: number, reach: number, damage: number): EnemyHit[] {
     if (!this.visiting || !(damage > 0)) return [];
     const p = this.nearestPoint(x, y);

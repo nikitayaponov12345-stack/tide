@@ -4,8 +4,13 @@ import { Game } from '../core/game';
 import { Rng } from '../core/rng';
 import { HUMAN, HumanBot, type BotParams } from './bot';
 
-export interface SimOptions { maxGameMs: number; untilLevel: number; bot: BotParams }
-export const DEFAULT_SIM: SimOptions = { maxGameMs: 40 * 60_000, untilLevel: 40, bot: HUMAN };
+export interface SimOptions {
+  maxGameMs: number;
+  /** 'cleared' — до победы в финальном бою (M1-15). */
+  untilLevel: number | 'cleared';
+  bot: BotParams;
+}
+export const DEFAULT_SIM: SimOptions = { maxGameMs: 40 * 60_000, untilLevel: 'cleared', bot: HUMAN };
 
 /** Уровни, на которых прогон отмечает первое достижение. */
 export const MARK_LEVELS = [2, 10, 20, 40] as const;
@@ -39,9 +44,19 @@ export interface SimResult {
   /** Предложений буста за рекламу показано и взято (с M1-12). */
   offers: number;
   offersTaken: number;
+  /** Финальный бой (с M1-15): игровое время начала шага, в котором он начался (не начался — null). */
+  fightStartGameMs: number | null;
+  /** Игровое время боя (stats.finalFightMs) при победе, иначе null. */
+  fightMs: number | null;
+  /** Когда финальный босс побеждён: игровое время и по часам; не побеждён — null. */
+  clearedGameMs: number | null;
+  clearedWallMs: number | null;
+  /** Ударов финального босса по клеткам и снятая ими прочность. */
+  finalStrikes: number;
+  finalCellDamage: number;
 }
 
-/** Партия бота «человек» на одном сиде: горизонталь, Лагуна, до уровня untilLevel или maxGameMs игрового времени. */
+/** Партия бота «человек» на одном сиде: горизонталь, Лагуна, до уровня untilLevel (или победы в финальном бою) или maxGameMs игрового времени. */
 export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SIM): SimResult {
   const game = new Game(data, { halfW: 640, halfH: 360, speedMult: 1, locationId: 'lagoon', seed });
   const bot = new HumanBot(game, data, new Rng(seed + 3), opts.bot);
@@ -61,11 +76,18 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
   let windows = 0;
   let adPoints = 0;
   let lastAdMs: number | null = null;
+  let fightStartGameMs: number | null = null;
+  let clearedGameMs: number | null = null;
+  let clearedWallMs: number | null = null;
+  const untilCleared = opts.untilLevel === 'cleared';
+  const untilLevel = typeof opts.untilLevel === 'number' ? opts.untilLevel : data.num('level_to_clear');
 
   // Шаги игры плюс паузы: окно и стройка на уровень, с большим запасом.
-  const maxIters = Math.ceil(opts.maxGameMs / STEP_MS) + 4 * opts.untilLevel + 1000;
+  const maxIters = Math.ceil(opts.maxGameMs / STEP_MS) + 4 * untilLevel + 1000;
   for (let i = 0; ; i++) {
     if (i >= maxIters) throw new Error(`runSim: сид ${seed} — предел шагов`);
+    // Победа — прогон кончен, окно «Локация пройдена» не ждём.
+    if (untilCleared && game.finalBoss.defeated) break;
     if (game.paused) {
       const isWindow = game.window !== null;
       const { ms, card, rewarded } = bot.pause();
@@ -84,10 +106,16 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
       }
       continue;
     }
-    if (game.progression.level >= opts.untilLevel || game.stats.gameMs + TIME_EPS >= opts.maxGameMs) break;
+    if ((!untilCleared && game.progression.level >= untilLevel) || game.stats.gameMs + TIME_EPS >= opts.maxGameMs) break;
     bot.update();
+    const stepStartMs = game.stats.gameMs;
     game.step(STEP_MS);
     wallMs += STEP_MS;
+    if (fightStartGameMs === null && game.finalBoss.phase !== 'none') fightStartGameMs = stepStartMs;
+    if (clearedGameMs === null && game.finalBoss.defeated) {
+      clearedGameMs = game.stats.gameMs;
+      clearedWallMs = wallMs;
+    }
     for (const l of MARK_LEVELS) {
       if (levelGameMs[l] === null && game.progression.level >= l) {
         levelGameMs[l] = game.stats.gameMs;
@@ -124,5 +152,11 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     adPoints,
     offers: game.boostOffer.shown,
     offersTaken: game.boostOffer.taken,
+    fightStartGameMs,
+    fightMs: game.finalBoss.defeated ? s.finalFightMs : null,
+    clearedGameMs,
+    clearedWallMs,
+    finalStrikes: s.finalStrikes,
+    finalCellDamage: s.finalCellDamage,
   };
 }

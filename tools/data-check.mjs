@@ -135,7 +135,7 @@ const needKey = (r, col, optional = false) => {
 // ---------- constants ----------
 unique(T.constants, (r) => r.key, 'data/constants.csv');
 const C = Object.fromEntries(T.constants.map((r) => [r.key, num(r, 'value')]));
-const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'sailor_box_px', 'walk_drag_px', 'walk_hint_delay_ms', 'walk_hint_max_level', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade', 'spear_flight_speed', 'spear_return_speed', 'spear_hit_radius', 'enemy_interval_base_s', 'enemy_interval_per_building', 'enemy_interval_min_s', 'enemy_spawn_outside_px', 'enemy_reach_px', 'enemy_wait_ms', 'enemy_radius_px', 'loot_drift_min', 'loot_drift_max', 'loot_scatter_px', 'autosave_s', 'resume_plaque_ms', 'erase_hold_ms', 'repair_per_tap', 'tower_net_flight_speed', 'tower_spear_speed', 'event_first_s', 'event_period_s', 'boss_visit_period_min_s', 'boss_visit_period_max_s', 'boss_chest_per_damage', 'boss_visit_max_chests', 'boss_ship_length_px', 'boss_ship_width_px', 'boss_ship_edge_px', 'boss_visit_gap_px', 'boss_ball_speed', 'boost_bottle_s', 'boost_ad_s', 'boost_flow_mult', 'seed_near_raft_min_px', 'seed_near_raft_max_px'];
+const needConst = ['cell_px', 'raft_grid', 'cell_hp', 'current_speed', 'current_portrait_mult', 'item_speed_min', 'item_speed_max', 'item_wobble', 'seed_seconds', 'seed_near_raft', 'net_flight_speed', 'net_flight_end_mult', 'net_pull_min', 'net_pull_max', 'icon_interval_ms', 'icon_flight_ms', 'sailor_box_px', 'walk_drag_px', 'walk_hint_delay_ms', 'walk_hint_max_level', 'level_to_clear', 'window_cards', 'window_cards_level2', 'window_cards_level3', 'refresh_after_cards', 'card_weight_raft', 'card_weight_building', 'card_weight_building_upgrade', 'card_weight_sailor_upgrade', 'spear_flight_speed', 'spear_return_speed', 'spear_hit_radius', 'enemy_interval_base_s', 'enemy_interval_per_building', 'enemy_interval_min_s', 'enemy_spawn_outside_px', 'enemy_reach_px', 'enemy_wait_ms', 'enemy_radius_px', 'loot_drift_min', 'loot_drift_max', 'loot_scatter_px', 'autosave_s', 'resume_plaque_ms', 'erase_hold_ms', 'repair_per_tap', 'tower_net_flight_speed', 'tower_spear_speed', 'event_first_s', 'event_period_s', 'boss_visit_period_min_s', 'boss_visit_period_max_s', 'boss_chest_per_damage', 'boss_visit_max_chests', 'boss_ship_length_px', 'boss_ship_width_px', 'boss_ship_edge_px', 'boss_visit_gap_px', 'boss_ball_speed', 'boss_final_distance_px', 'boss_big_chest_share', 'boss_crab_radius_px', 'boss_crab_speed', 'boss_crab_wait_ms', 'boss_crab_dive_ms', 'boost_bottle_s', 'boost_ad_s', 'boost_flow_mult', 'seed_near_raft_min_px', 'seed_near_raft_max_px'];
 for (const k of needConst) if (!(k in C)) err(`data/constants.csv: нет ключа ${k}`);
 if (C.item_speed_min > C.item_speed_max) err('data/constants.csv: item_speed_min больше item_speed_max');
 if (C.net_pull_min > C.net_pull_max) err('data/constants.csv: net_pull_min больше net_pull_max');
@@ -143,7 +143,7 @@ if (!(C.walk_drag_px > 0)) err('data/constants.csv: walk_drag_px должен б
 if (!(C.walk_hint_delay_ms >= 0)) err('data/constants.csv: walk_hint_delay_ms не может быть меньше 0');
 if (!(Number.isInteger(C.walk_hint_max_level) && C.walk_hint_max_level >= 2)) err('data/constants.csv: walk_hint_max_level — целое не меньше 2');
 if (!(C.loot_drift_min > 0 && C.loot_drift_min <= C.loot_drift_max)) err('data/constants.csv: нужно 0 < loot_drift_min ≤ loot_drift_max');
-for (const k of ['enemy_radius_px', 'enemy_reach_px', 'enemy_spawn_outside_px', 'spear_flight_speed', 'spear_return_speed', 'autosave_s', 'resume_plaque_ms', 'erase_hold_ms', 'repair_per_tap', 'tower_net_flight_speed', 'tower_spear_speed', 'event_first_s', 'event_period_s', 'boss_chest_per_damage', 'boss_ship_length_px', 'boss_ship_width_px', 'boss_ship_edge_px', 'boss_visit_gap_px', 'boss_ball_speed', 'boost_bottle_s', 'boost_ad_s', 'boost_flow_mult']) if (!(C[k] > 0)) err(`data/constants.csv: ${k} должен быть больше 0`);
+for (const k of ['enemy_radius_px', 'enemy_reach_px', 'enemy_spawn_outside_px', 'spear_flight_speed', 'spear_return_speed', 'autosave_s', 'resume_plaque_ms', 'erase_hold_ms', 'repair_per_tap', 'tower_net_flight_speed', 'tower_spear_speed', 'event_first_s', 'event_period_s', 'boss_chest_per_damage', 'boss_ship_length_px', 'boss_ship_width_px', 'boss_ship_edge_px', 'boss_visit_gap_px', 'boss_ball_speed', 'boss_final_distance_px', 'boss_big_chest_share', 'boss_crab_radius_px', 'boss_crab_speed', 'boss_crab_wait_ms', 'boss_crab_dive_ms', 'boost_bottle_s', 'boost_ad_s', 'boost_flow_mult']) if (!(C[k] > 0)) err(`data/constants.csv: ${k} должен быть больше 0`);
 for (const k of ['enemy_wait_ms', 'loot_scatter_px']) if (!(C[k] >= 0)) err(`data/constants.csv: ${k} не может быть меньше 0`);
 if (!(C.boss_visit_period_min_s > 0 && C.boss_visit_period_min_s <= C.boss_visit_period_max_s)) err('data/constants.csv: нужно 0 < boss_visit_period_min_s ≤ boss_visit_period_max_s');
 if (!(Number.isInteger(C.boss_visit_max_chests) && C.boss_visit_max_chests >= 0)) err('data/constants.csv: boss_visit_max_chests — целое не меньше 0');
@@ -216,6 +216,8 @@ if (T.sailor.length !== T.locations.length) err(`data/sailor.csv: ярусов $
 
 const minThrow = Math.min(...T.sailor.map((r) => Number(r.throw_range)));
 if (C.boss_visit_gap_px > minThrow) err(`data/constants.csv: boss_visit_gap_px = ${C.boss_visit_gap_px} больше наименьшей throw_range (${minThrow}) — копьё моряка не достанет шхуну на визите`);
+// И финального босса (GDD, «Финальный бой»: проиграть нельзя и без копейных башен).
+if (C.boss_final_distance_px > minThrow) err(`data/constants.csv: boss_final_distance_px = ${C.boss_final_distance_px} больше наименьшей throw_range (${minThrow}) — копьё не достанет финального босса`);
 
 // ---------- buildings ----------
 const buildingIds = new Set(T.buildings.map((r) => r.id));
@@ -310,14 +312,19 @@ const bossIds = unique(T.bosses, (r) => r.id, 'data/bosses.csv');
 for (const r of T.bosses) {
   if (!locIds.has(r.location)) err(`${where(r)}: локации «${r.location}» нет`);
   needKey(r, 'name_key');
-  num(r, 'final_hp', { min: 1 });
+  num(r, 'final_hp', { min: 1, optional: true });
   for (const c of ['visit_speed', 'visit_attack_period_s', 'visit_damage', 'visit_duration_s', 'final_attack_period_s', 'final_damage', 'part_hp', 'parts', 'summon_count']) num(r, c, { min: 0, optional: true });
   if (r.behavior === 'pass_bottom_edge') {
     num(r, 'visit_speed', { min: 1 });
     num(r, 'visit_attack_period_s', { min: 0.1 });
     num(r, 'visit_damage', { min: 0 });
+    if (r.chest_item === '') err(`${where(r)}: у босса с визитами нужен chest_item`);
   }
-  if (!itemIds.has(r.chest_item)) err(`${where(r)}: сундука «${r.chest_item}» нет в items.csv`);
+  if (r.behavior === 'crawl_dive') {
+    num(r, 'final_hp', { min: 1 });
+    num(r, 'final_damage', { min: 1 });
+  }
+  if (r.chest_item !== '' && !itemIds.has(r.chest_item)) err(`${where(r)}: сундука «${r.chest_item}» нет в items.csv`);
 }
 const eventIds = unique(T.events, (r) => r.id, 'data/events.csv');
 for (const r of T.events) {
@@ -332,6 +339,8 @@ for (const r of T.locations) {
   if (!enemyIds.has(r.enemy_id)) err(`${where(r)}: врага «${r.enemy_id}» нет`);
   if (!bossIds.has(r.boss_id)) err(`${where(r)}: босса «${r.boss_id}» нет`);
   if (!eventIds.has(r.event_id)) err(`${where(r)}: события «${r.event_id}» нет`);
+  const finals = T.bosses.filter((b) => b.location === r.id && b.final_hp !== '').length;
+  if (finals !== 1) err(`${where(r)}: строк bosses.csv с final_hp — ${finals}, нужна одна (финальный босс)`);
 }
 
 // ---------- ads ----------

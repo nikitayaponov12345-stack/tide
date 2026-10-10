@@ -13,19 +13,19 @@ export interface SaveFile {
   version: number;
   /** Весь опыт за всё время. */
   rating: number;
-  /** Пройденные локации — с M2; открытая за рекламу воронка — с M1-14. */
+  /** Пройденные локации — с M1-15 (победа в финальном бою; карта — M2); открытая за рекламу воронка — с M1-14. */
   campaign: { passed: string[]; whirlpoolUnlocked: boolean };
   run: RunSave | null;
   /** Повтор пройденной локации — с M2. */
   replay: null;
 }
 
-/** Запись партии. Пока партия одна, рейтинг — её опыт. */
+/** Запись партии. Пока партия одна, рейтинг — её опыт, а пройденная локация — её, если финальный бой выигран. */
 export function makeSave(game: Game, locationId: string, seed: number): SaveFile {
   return {
     version: SAVE_VERSION,
     rating: game.stats.xpGained,
-    campaign: { passed: [], whirlpoolUnlocked: game.whirlpoolUnlocked },
+    campaign: { passed: game.finalBoss.defeated ? [locationId] : [], whirlpoolUnlocked: game.whirlpoolUnlocked },
     run: { locationId, seed, game: game.snapshot() },
     replay: null,
   };

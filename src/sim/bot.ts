@@ -67,7 +67,7 @@ const WALK_DIRS: ReadonlyArray<readonly [number, number]> = [[0, 1], [1, 0], [-1
 /** rewarded — за паузу бот смотрел рекламу за награду (буст или воронка). */
 export interface PauseResult { ms: number; card: string | null; rewarded?: boolean }
 
-/** Бот «человек» на ядре Game: подаёт те же команды, что палец (CLAUDE.md, правило 9). Ходит только к шхуне на визите. */
+/** Бот «человек» на ядре Game: подаёт те же команды, что палец (CLAUDE.md, правило 9). Ходит только к шхуне на визите и к финальному боссу. */
 export class HumanBot {
   private holding = false;
   private throwAt: number | null = null;
@@ -125,8 +125,8 @@ export class HumanBot {
       return;
     }
 
-    // Копьё шхуну не достаёт — через время реакции шаг к ней.
-    if (crab === null && g.spearOwned && g.boss.visiting) {
+    // Копьё шхуну или финального босса не достаёт — через время реакции шаг к ним.
+    if (crab === null && g.spearOwned && (g.boss.visiting || g.finalBoss.present)) {
       if (this.walkAt === null) this.walkAt = now + this.span(p.reactionMs);
       if (now + TIME_EPS >= this.walkAt && this.stepToBoss()) this.walkAt = null;
     } else {
@@ -157,7 +157,7 @@ export class HumanBot {
     }
   }
 
-  /** Окно, стройка или реклама за награду: решение и сколько оно заняло по часам. */
+  /** Окно, стройка, реклама за награду или «Локация пройдена»: решение и сколько оно заняло по часам. */
   pause(): PauseResult {
     const g = this.game;
     this.release();
@@ -169,6 +169,11 @@ export class HumanBot {
     this.throwAt = null;
     this.pullAt = null;
     this.walkAt = null;
+    if (g.cleared) {
+      const ms = this.span(this.params.windowMs);
+      g.playOn();
+      return { ms, card: null };
+    }
     if (g.window) {
       // Закрытая воронка: как живой игрок на ПК, бот открывает её при первом показе.
       const rewarded = g.window.cards.some((c) => c.reason === AD_LOCKED) && g.unlockWhirlpool();
@@ -202,19 +207,23 @@ export class HumanBot {
     throw new Error('HumanBot.pause: паузы нет');
   }
 
-  /** Цель копья — ближайшая к моряку в круге дальности: враг или, на визите, ближайшая точка корпуса шхуны. Копья нет — null. */
+  /** Цель копья — ближайшая к моряку в круге дальности: враг, ближайшая точка шхуны на визите или финального босса над водой. Копья нет — null. */
   private spearTarget(): { x: number; y: number } | null {
     const g = this.game;
     if (!g.spearOwned) return null;
-    return nearestTarget(g.enemies, g.boss, g.sailor.x, g.sailor.y, g.spear.range);
+    return nearestTarget(g.enemies, [g.boss, g.finalBoss], g.sailor.x, g.sailor.y, g.spear.range);
   }
 
-  /** Шаг на соседнюю целую клетку, с которой до корпуса шхуны ближе всего и ближе, чем с нынешней. Такой нет — false. */
+  /**
+   * Шаг на соседнюю целую клетку, с которой до большой цели ближе всего и ближе, чем с нынешней. Цель — финальный босс,
+   * если он над водой, иначе шхуна. Такой клетки нет — false.
+   */
   private stepToBoss(): boolean {
     const g = this.game;
+    const boss = g.finalBoss.present ? g.finalBoss : g.boss;
     const toHull = (gx: number, gy: number): number => {
       const c = g.raft.cellCenter({ gx, gy });
-      const p = g.boss.nearestPoint(c.x, c.y);
+      const p = boss.nearestPoint(c.x, c.y);
       return Math.hypot(p.x - c.x, p.y - c.y);
     };
     const { gx, gy } = g.sailor;

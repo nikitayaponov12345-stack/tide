@@ -12,17 +12,18 @@ export type SpearTowerState = 'ready' | 'flying';
 export interface SpearTower { gx: number; gy: number; state: SpearTowerState; x: number; y: number; toX: number; toY: number; restMs: number }
 export interface SpearTowersSnapshot { list: SpearTower[]; damage: number }
 
-/** Что башня видит у врагов и босса, когда выбирает цель. Enemies и BossVisits подходят как есть. */
+/** Что башня видит у врагов и больших целей, когда выбирает цель. Enemies, BossVisits и FinalBoss подходят как есть. */
 export interface TargetEnemies { list: readonly { x: number; y: number }[] }
-export interface TargetBoss { visiting: boolean; nearestPoint(x: number, y: number): { x: number; y: number } }
+/** Большая цель копья: шхуна на визите, финальный босс над водой (M1-15). */
+export interface BossTarget { readonly present: boolean; nearestPoint(x: number, y: number): { x: number; y: number } }
 
 /**
- * Ближайшая к (x, y) цель не дальше r: центр врага или ближайшая точка корпуса шхуны на визите; нет — null.
- * При равном расстоянии остаётся найденная раньше: враги по списку, потом шхуна.
+ * Ближайшая к (x, y) цель не дальше r: центр врага или ближайшая точка большой цели, которая на поле; нет — null.
+ * При равном расстоянии остаётся найденная раньше: враги по списку, потом большие цели по порядку.
  */
-export function nearestTarget(enemies: TargetEnemies, boss: TargetBoss, x: number, y: number, r: number): { x: number; y: number } | null {
+export function nearestTarget(enemies: TargetEnemies, bosses: readonly BossTarget[], x: number, y: number, r: number): { x: number; y: number } | null {
   const points: { x: number; y: number }[] = enemies.list.map((e) => ({ x: e.x, y: e.y }));
-  if (boss.visiting) points.push(boss.nearestPoint(x, y));
+  for (const b of bosses) if (b.present) points.push(b.nearestPoint(x, y));
   let best: { x: number; y: number } | null = null;
   let bestD = Infinity;
   for (const p of points) {
@@ -37,7 +38,7 @@ export function nearestTarget(enemies: TargetEnemies, boss: TargetBoss, x: numbe
 
 /**
  * Копейные башни плота (GDD, «Плот и постройки»): копьё у башни, отдохнув pauseMs, летит в ближайшего врага
- * или в шхуну в радиусе radius от клетки башни и бьёт, как копьё моряка, всех у точки падения. После удара
+ * или в большую цель (шхуну на визите, с M1-15 — и финального босса над водой) в радиусе radius от клетки башни и бьёт, как копьё моряка, всех у точки падения. После удара
  * копьё сразу снова у башни и отдыхает. Башня на разбитой клетке новых бросков не делает. Случайности нет.
  */
 export class SpearTowers {
@@ -76,7 +77,7 @@ export class SpearTowers {
   }
 
   /** Шаг башен: копьё в полёте летит и бьёт, долетев; копьё у башни отдыхает, затем бросок в ближайшую цель. */
-  step(dtMs: number, enemies: TargetEnemies, boss: TargetBoss, targets: SpearTargets, raft: Raft): void {
+  step(dtMs: number, enemies: TargetEnemies, bosses: readonly BossTarget[], targets: SpearTargets, raft: Raft): void {
     const move = (this.speed * dtMs) / 1000;
     for (const t of this.list) {
       if (t.state === 'flying') {
@@ -97,7 +98,7 @@ export class SpearTowers {
       const cell = raft.cell(t.gx, t.gy);
       if (!cell || !isIntact(cell) || t.restMs > TIME_EPS) continue;
       const home = raft.cellCenter(t);
-      const p = nearestTarget(enemies, boss, home.x, home.y, this.radius);
+      const p = nearestTarget(enemies, bosses, home.x, home.y, this.radius);
       if (!p) continue;
       Object.assign(t, { state: 'flying', x: home.x, y: home.y, toX: p.x, toY: p.y });
       this.stats.towerSpearThrows++;

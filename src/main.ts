@@ -15,6 +15,7 @@ import { View } from './game/view';
 import { StubPlatform } from './platform/stub';
 import { BoostOfferButton } from './ui/boost-offer';
 import { CardWindow } from './ui/cards';
+import { ClearedWindow } from './ui/cleared';
 import { WalkHint } from './ui/hint';
 import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
@@ -24,7 +25,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.21';
+const VERSION = '0.0.22';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -133,6 +134,9 @@ async function boot(): Promise<void> {
     void control.rewarded(() => platform.showRewarded()).then((ok) => game.adDone(ok));
   });
   const hint = new WalkHint(ui, game, text);
+  const cleared = new ClearedWindow(ui, game, text, DATA.location(LOCATION).nameKey, () => {
+    if (game.playOn()) saver.save();
+  });
   const plaque = resumed
     ? new ResumePlaque(
         ui,
@@ -164,8 +168,12 @@ async function boot(): Promise<void> {
   };
   for (const type of ['pointerdown', 'pointermove', 'pointerup'] as const) window.addEventListener(type, watchBuild, { capture: true });
 
+  // Запись сразу после победы в финальном бою: окно «Локация пройдена» и пройденная локация не теряются.
+  let wasCleared = game.cleared;
   stage.app.ticker.add((ticker) => {
     control.frame(ticker.deltaMS);
+    if (game.cleared && !wasCleared) saver.save();
+    wasCleared = game.cleared;
     saver.frame();
     watchBuild();
     view.sync(game, cursor);
@@ -174,6 +182,7 @@ async function boot(): Promise<void> {
     cards.update(stage.layout, performance.now());
     place.update(stage.layout, cellPx);
     hint.update(stage.layout);
+    cleared.update(stage.layout);
     slots.update(stage.layout);
     repair.update(stage.layout);
     boostOffer.update(stage.layout);
@@ -248,6 +257,12 @@ async function boot(): Promise<void> {
       ),
       ad: game.ad,
       whirlpoolUnlocked: game.whirlpoolUnlocked,
+      finalBoss: ((b) => ({
+        id: b.id, phase: b.phase, side: b.side, x: b.x, y: b.y, radius: b.radius, hp: b.hp, maxHp: b.maxHp,
+        targetGx: b.targetGx, targetGy: b.targetGy, leftMs: b.leftMs, level: b.level, chestXp: b.chestXp,
+      }))(game.finalBoss),
+      cleared: game.cleared,
+      levelCap: Number.isFinite(progression.maxLevel) ? progression.maxLevel : null,
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
@@ -263,6 +278,8 @@ async function boot(): Promise<void> {
     debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
     debugEvent: () => game.debugEvent(),
     debugBossVisit: (side) => game.debugBossVisit(side),
+    debugFinalBoss: (side) => game.finalBoss.start(game.raft, side),
+    debugFinalBossHp: (hp) => game.finalBoss.debugHp(hp),
     debugBoost: (ms) => game.debugBoost(ms),
     debugBoostOffer: () => game.debugBoostOffer(),
     debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),

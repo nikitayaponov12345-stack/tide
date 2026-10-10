@@ -16,6 +16,7 @@ export function xpBarRect(width: number, height: number, layout: Layout): { left
 
 /**
  * Полоса опыта у верхнего края поля дизайна по центру: «Уровень N» (под бустом — «Уровень N · Буст S с») и заполнение xp / xpToNext.
+ * В финальный бой (M1-15) — полоса прочности босса: красная, с его именем, заполнение hp / maxHp.
  * Только читает ядро; новый уровень показывает окно выбора.
  */
 export class Hud {
@@ -38,8 +39,12 @@ export class Hud {
     const r = xpBarRect(window.innerWidth, window.innerHeight, layout);
     Object.assign(this.bar.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
 
-    this.fill.style.width = `${Math.min(100, (p.xp / p.xpToNext()) * 100)}%`;
-    let text = `${this.text('ui.level')} ${p.level}`;
+    const fb = game.finalBoss;
+    const fight = fb.fighting;
+    this.bar.classList.toggle('boss', fight);
+    const share = fight ? fb.hp / fb.maxHp : p.xp / p.xpToNext();
+    this.fill.style.width = `${Math.min(100, share * 100)}%`;
+    let text = fight ? this.text(fb.nameKey) : `${this.text('ui.level')} ${p.level}`;
     const boost = game.boost;
     if (boost.active) text += ` · ${this.text('ui.boost_left').replace('{s}', String(Math.ceil(boost.leftMs / 1000)))}`;
     if (text !== this.lastText) this.label.textContent = this.lastText = text;

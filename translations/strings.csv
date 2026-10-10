@@ -18,6 +18,7 @@ b.whirlpool.2,Воронка 2,Whirlpool 2
 b.whirlpool.3,Воронка 3,Whirlpool 3
 b.whirlpool.4,Воронка 4,Whirlpool 4
 boss.ghost_ship,Корабль-призрак,Ghost Ship
+boss.giant_crab,Краб-великан,Giant Crab
 boss.octopus,Гигантский осьминог,Giant Octopus
 boss.schooner,Пиратская шхуна,Pirate Schooner
 boss.white_whale,Белый кит,White Whale
@@ -101,10 +102,12 @@ loc.north,Северные воды,Northern Waters
 loc.reef,Риф,Reef
 loc.strait,Штормовой пролив,Storm Strait
 ui.ad_locked,Открывается за рекламу,Unlocks with an ad
-ui.ad_unlock,Открыть за рекламу,Watch an ad to unlock
+ui.ad_unlock,Открыть за рекламу,Unlock with ad
+ui.big_chest,Большой сундук: +{xp} опыта,Big chest: +{xp} XP
 ui.boost_left,Буст {s} с,Boost {s} s
 ui.boost_offer,Буст {s} с за рекламу,{s} s boost for an ad
 ui.choose_card,Выбери улучшение,Choose an upgrade
+ui.cleared,Локация пройдена,Location cleared
 ui.erase,Стереть прогресс,Erase progress
 ui.erase_hold,Удерживай {s} с,Hold for {s} s
 ui.hint.walk_keys,WASD или стрелки — шаг моряка,WASD or arrow keys — move the sailor
@@ -116,6 +119,7 @@ ui.need_free_cell,Требуется свободный плот,Needs a free ra
 ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place
+ui.play_on,Играть дальше,Keep playing
 ui.repair,Ремонт,Repair
 ui.resume,Продолжить,Resume
 ui.resume_plaque,{location} · {level} уровень,{location} · level {level}

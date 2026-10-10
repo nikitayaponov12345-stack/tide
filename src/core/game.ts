@@ -4,10 +4,12 @@ import { BoostOffer } from './boost-offer';
 import { TIME_EPS } from './clock';
 import { FLOW_ROLES, type CardKind, type Tables } from './data/tables';
 import { Deck, type OfferCard } from './deck';
-import { Enemies, type EnemiesContext } from './enemies';
+import { Enemies } from './enemies';
 import { LocationEvents } from './events';
+import { FinalBoss } from './final-boss';
 import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, debugLevelUp, openNext, placeCell, takeCard, unlockWhirlpool } from './game-cards';
 import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
+import { enemiesContext, finalHit, levelCap, playOn, stepThreats } from './game-threats';
 import { Net, type CaughtItem } from './net';
 import { Progression } from './progression';
 import { Raft, type Spot } from './raft';
@@ -46,6 +48,7 @@ export class Game {
   readonly whirlpools: Whirlpools;
   readonly events: LocationEvents;
   readonly boss: BossVisits;
+  readonly finalBoss: FinalBoss;
   readonly boost: Boost;
   readonly boostOffer: BoostOffer;
   readonly progression: Progression;
@@ -61,6 +64,8 @@ export class Game {
   repair = false;
   /** Идёт реклама за награду: мир стоит. В снимок не входит: после загрузки рекламы нет и награды нет. */
   ad = false;
+  /** Открыто окно «Локация пройдена» (M1-15): мир стоит. Входит в снимок: после загрузки окно на месте. */
+  cleared = false;
   /** У площадки есть реклама за награду. */
   readonly rewarded: boolean;
   /** Воронка открыта на всю кампанию (M1-14). В снимок не входит: это запись кампании. */
@@ -84,9 +89,11 @@ export class Game {
   private readonly repairPerTap: number;
   /** Удержание пальца: сеть тянется, только если выбран слот сети. */
   private hold = false;
-  /** Цели копья моряка и копейных башен: враги и шхуна на визите. */
+  /** Цели копья моряка и копейных башен: враги, босс на визите и финальный босс. */
   private readonly spearTargets: SpearTargets = {
-    hit: (x, y, reach, damage) => [...this.enemies.hit(x, y, reach, damage), ...this.boss.hit(x, y, reach, damage)],
+    hit: (x, y, reach, damage) => [
+      ...this.enemies.hit(x, y, reach, damage), ...this.boss.hit(x, y, reach, damage), ...finalHit(this, x, y, reach, damage),
+    ],
   };
 
   constructor(data: Tables, cfg: GameConfig) {
@@ -110,6 +117,7 @@ export class Game {
     this.whirlpools = new Whirlpools(data, cfg.locationId);
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
+    this.finalBoss = new FinalBoss(data, cfg.locationId, this.world, this.stats);
     this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
     this.rewarded = cfg.rewarded ?? true;
     this.whirlpoolUnlocked = cfg.whirlpoolUnlocked ?? false;
@@ -125,6 +133,7 @@ export class Game {
     this.walkHintDelayMs = data.num('walk_hint_delay_ms');
     this.walkHintMaxLevel = data.num('walk_hint_max_level');
     this.repairPerTap = data.num('repair_per_tap');
+    this.progression.maxLevel = levelCap(this);
   }
 
   /** Снимок партии: копии, дальнейшая игра его не меняет. */
@@ -141,20 +150,20 @@ export class Game {
     return g;
   }
 
-  /** Открыто окно выбора, идёт стройка, открыта пауза, идёт ремонт или реклама: мир стоит. */
+  /** Открыто окно выбора, идёт стройка, открыта пауза, идёт ремонт или реклама, открыто «Локация пройдена»: мир стоит. */
   get paused(): boolean {
-    return this.window !== null || this.build !== null || this.menu || this.repair || this.ad;
+    return this.window !== null || this.build !== null || this.menu || this.repair || this.ad || this.cleared;
   }
 
   /** Окно паузы. Уровень, набранный до неё, открывает окно на первом шаге после. */
   setMenu(on: boolean): void {
-    if (on && this.ad) return; // во время рекламы не открывается
+    if (on && (this.ad || this.cleared)) return; // во время рекламы и поверх «Локация пройдена» не открывается
     this.menu = on;
   }
 
-  /** Режим ремонта. Выход — всегда; вход — только при повреждённой клетке, без окна выбора, стройки и паузы, иначе false. */
+  /** Режим ремонта. Выход — всегда; вход — только при повреждённой клетке, без окна выбора, стройки, паузы и «Локация пройдена», иначе false. */
   setRepair(on: boolean): boolean {
-    if (on && (!this.raft.damaged() || this.window !== null || this.build !== null || this.menu)) return false;
+    if (on && (!this.raft.damaged() || this.window !== null || this.build !== null || this.menu || this.cleared)) return false;
     this.repair = on;
     return true;
   }
@@ -173,14 +182,8 @@ export class Game {
   step(dtMs: number): void {
     if (this.paused) return;
     this.stats.gameMs += dtMs;
-    // Событие, визит и буст — первыми: их множители действуют уже в этом шаге.
-    // Спокойное время события копится без визита и буста, визита — без события и буста.
-    // Предложение буста за рекламу — не в событие, не в визит и не под бустом; после первого предложения бутылок больше нет.
-    this.events.step(dtMs, !this.boss.visiting && !this.boost.active);
-    this.boss.step(dtMs, !this.events.active && !this.boost.active, this.events.count, this.raft);
-    this.boostOffer.step(dtMs, !this.events.active && !this.boss.visiting && !this.boost.active);
-    this.boost.step(dtMs, this.stats.enemiesKilled, this.bottleInNet(), this.boostOffer.shown > 0);
-    this.world.flowMult = this.events.flowMult * (this.boost.active ? this.boost.flowMult : 1);
+    // Угрозы первыми: множители события и буста действуют уже в этом шаге (порядок — в game-threats.ts).
+    stepThreats(this, dtMs);
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
     if (caught) {
@@ -195,8 +198,8 @@ export class Game {
     this.stats.whirlpoolCaught += fromWhirlpools.length;
     if (fromTowers.length + fromWhirlpools.length > 0) this.addCatch([...fromTowers, ...fromWhirlpools]);
     if (this.spear.step(dtMs, this.spearTargets).length > 0) this.stats.spearHits++;
-    this.spearTowers.step(dtMs, this.enemies, this.boss, this.spearTargets, this.raft);
-    this.enemies.step(dtMs, this.enemiesContext());
+    this.spearTowers.step(dtMs, this.enemies, [this.boss, this.finalBoss], this.spearTargets, this.raft);
+    this.enemies.step(dtMs, enemiesContext(this));
     if (this.enemies.spawned > 0) this.spearOwned = true;
     this.stats.xpGained += this.progression.step(this.world.timeMs);
     collectLevelUps(this);
@@ -219,6 +222,11 @@ export class Game {
       this.stats.boostKills += this.enemies.killAll();
     }
     return true;
+  }
+
+  /** «Играть дальше» в окне «Локация пройдена»: окно закрывается, уровни идут дальше. Окна нет → false. */
+  playOn(): boolean {
+    return playOn(this);
   }
 
   /** Выбранное оружие можно бросить: не пауза и оно у моряка. */
@@ -333,7 +341,7 @@ export class Game {
    */
   debugSpawnEnemy(x?: number, y?: number): void {
     const at = x !== undefined && y !== undefined ? { x, y } : null;
-    if (this.enemies.spawnNow(this.enemiesContext(), at)) this.spearOwned = true;
+    if (this.enemies.spawnNow(enemiesContext(this), at)) this.spearOwned = true;
   }
 
   /** Отладка: событие локации сейчас (идёт — начинается заново); работает и на паузе. */
@@ -381,18 +389,5 @@ export class Game {
     }
     if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
     if (caught.some((it) => it.role === BOTTLE_ROLE)) this.boost.bottleBack();
-  }
-
-  /** Бутылка в сети моряка или в сети какой-нибудь сетевой башни: поймана, но ещё не вернулась. */
-  private bottleInNet(): boolean {
-    const isBottle = (it: CaughtItem): boolean => it.role === BOTTLE_ROLE;
-    return this.net.caught.some(isBottle) || this.towers.list.some((t) => t.nets.some((n) => n.caught.some(isBottle)));
-  }
-
-  private enemiesContext(): EnemiesContext {
-    return {
-      raft: this.raft, level: this.progression.level, ready: this.raft.cells.length >= 2 && this.mediumCaught,
-      buildings: this.raft.buildingCount(), rateMult: this.events.enemyRateMult, blocked: this.boost.active,
-    };
   }
 }
