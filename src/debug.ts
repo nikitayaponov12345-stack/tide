@@ -1,3 +1,4 @@
+import type { BossBall, BossSide } from './core/boss';
 import type { Role } from './core/data/tables';
 import type { EnemyPhase } from './core/enemies';
 import type { Weapon } from './core/game';
@@ -44,6 +45,8 @@ export interface GameDebug {
       repairTaps: number;
       /** Броски сетевых башен и предметы, которые вернули их сети. */
       towerThrows: number; towerCaught: number;
+      /** Шхуна: выстрелы, снятая ядрами прочность клеток, урон по ней и выпавшие сундуки. */
+      bossShots: number; bossCellDamage: number; bossDamage: number; bossChests: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -71,6 +74,14 @@ export interface GameDebug {
     towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
     /** Событие локации: id (нет у локации — null), идёт ли, сколько осталось, спокойное время, сколько было. */
     event: { id: string | null; active: boolean; leftMs: number; calmMs: number; count: number };
+    /**
+     * Визиты босса: id (нет у локации — null), идёт ли визит, сторона, середина и полуразмеры корпуса (координаты мира),
+     * урон и сундуки визита, сколько визитов кончилось, спокойное время и сколько его нужно, ядра в полёте.
+     */
+    boss: {
+      id: string | null; visiting: boolean; side: BossSide; x: number; y: number; hx: number; hy: number;
+      damage: number; chests: number; visits: number; calmMs: number; nextMs: number; balls: BossBall[];
+    };
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -94,6 +105,8 @@ export interface GameDebug {
   debugSpawnEnemy(x?: number, y?: number): void;
   /** Событие локации сейчас (идёт — заново), и на паузе. */
   debugEvent(): void;
+  /** Визит босса сейчас вдоль стороны side (нет — случайной), и на паузе; идёт визит — ничего. */
+  debugBossVisit(side?: BossSide): void;
   /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
   debugDamageCell(gx: number, gy: number, amount: number): number;
   /** Центр клетки плота в координатах окна (CSS-пиксели). */

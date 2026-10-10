@@ -32,6 +32,9 @@ const ENEMY_UNDERWATER_ALPHA = 0.45;
 /** Тёмная вода в событие локации: слой поверх воды, под миром. */
 const EVENT_DARK = { color: 0x000000, alpha: 0.35 } as const;
 const SPEAR_COLOR = 0xf1e3c8;
+/** Шхуна на визите: корпус, палуба с отступом, мачта; ядра — тёмные круги с белой обводкой. */
+const SHIP = { hull: 0x4a2c17, hullRound: 24, deck: 0x7a4a2a, deckInset: 10, deckRound: 14, mast: 0xf1e3c8, mastRadius: 8 } as const;
+const BALL = { color: 0x1a1a1a, radius: 7, stroke: { width: 1, color: 0xffffff } } as const;
 /** Сеть башни: верёвка от клетки башни и круг сети. */
 const TOWER_NET = { rope: { width: 1.5, color: 0x9fe3d6, alpha: 0.8 }, ring: { width: 2, color: 0x9fe3d6 } } as const;
 /** Длина наконечника копья, точки дизайна. */
@@ -46,7 +49,7 @@ export interface ViewOptions {
 
 /**
  * Рабочая отрисовка: вода, плот с постройками (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
- * сеть и копьё с верёвкой, сети башен, значки опыта.
+ * шхуна с ядрами, сеть и копьё с верёвкой, сети башен, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
 export class View {
@@ -65,6 +68,8 @@ export class View {
   private readonly spear = new Graphics();
   private readonly enemies = new Graphics();
   private readonly enemyHp = new Container();
+  /** Шхуна на визите и её ядра. */
+  private readonly boss = new Graphics();
   private readonly icons = new Graphics();
   private readonly counter = new Text({ text: '', style: LABEL_STYLE });
   private iconTargetY = 0;
@@ -74,7 +79,7 @@ export class View {
     private readonly opts: ViewOptions,
   ) {
     this.counter.anchor.set(0.5, 1);
-    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.net, this.spear, this.sailor, this.counter, this.icons);
+    this.world.addChild(this.raft, this.ghost, this.range, this.items, this.enemies, this.enemyHp, this.boss, this.net, this.spear, this.sailor, this.counter, this.icons);
     this.world.mask = this.field;
     this.dark.visible = false;
     root.addChild(this.sea, this.dark, this.field, this.world);
@@ -121,6 +126,7 @@ export class View {
     for (const it of world.items) this.items.circle(it.x, it.y, it.radius).fill(ROLE_COLOR[it.role]);
 
     this.syncEnemies(game);
+    this.syncBoss(game);
 
     this.spear.clear();
     const sp = game.spear;
@@ -188,6 +194,20 @@ export class View {
       t.alpha = alpha;
       t.position.set(e.x, e.y - r - 2);
     });
+  }
+
+  /** Шхуна — корпус по hx, hy (у боковых сторон стоймя), палуба и мачта; ядра в полёте. */
+  private syncBoss(game: Game): void {
+    const b = game.boss;
+    this.boss.clear();
+    if (b.visiting) {
+      const i = SHIP.deckInset;
+      this.boss
+        .roundRect(b.x - b.hx, b.y - b.hy, 2 * b.hx, 2 * b.hy, SHIP.hullRound).fill(SHIP.hull)
+        .roundRect(b.x - b.hx + i, b.y - b.hy + i, 2 * (b.hx - i), 2 * (b.hy - i), SHIP.deckRound).fill(SHIP.deck)
+        .circle(b.x, b.y, SHIP.mastRadius).fill(SHIP.mast);
+    }
+    for (const ball of b.balls) this.boss.circle(ball.x, ball.y, BALL.radius).fill(BALL.color).stroke(BALL.stroke);
   }
 
   /** Клетка сетки (gx, gy) со скруглением, в координатах мира. */

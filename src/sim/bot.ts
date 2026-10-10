@@ -1,7 +1,7 @@
 import { TIME_EPS } from '../core/clock';
 import type { Tables } from '../core/data/tables';
-import type { Enemy } from '../core/enemies';
 import type { Game } from '../core/game';
+import { isIntact } from '../core/raft';
 import type { Rng } from '../core/rng';
 import type { Item } from '../core/world';
 
@@ -48,16 +48,19 @@ const LEAD = 0.6;
 /** Счёт клетки стройки: чуть к притоку (течение Лагуны приходит справа сверху). */
 const BUILD_BIAS_DOWN = 0.3;
 const BUILD_BIAS_LEFT = 0.2;
+/** Шаги к шхуне, если копьё её не достаёт: при равенстве — вниз, вправо, влево, вверх. */
+const WALK_DIRS: ReadonlyArray<readonly [number, number]> = [[0, 1], [1, 0], [-1, 0], [0, -1]];
 
 export interface PauseResult { ms: number; card: string | null }
 
-/** Бот «человек» на ядре Game: подаёт те же команды, что палец (CLAUDE.md, правило 9). В M0 моряком не ходит. */
+/** Бот «человек» на ядре Game: подаёт те же команды, что палец (CLAUDE.md, правило 9). Ходит только к шхуне на визите. */
 export class HumanBot {
   private holding = false;
   private throwAt: number | null = null;
   private pullAt: number | null = null;
   private pullDelay = 0;
   private crabAt: number | null = null;
+  private walkAt: number | null = null;
   private readonly flightMean: number;
 
   constructor(
@@ -75,7 +78,7 @@ export class HumanBot {
     const p = this.params;
     const now = g.stats.gameMs;
 
-    const crab = this.crab();
+    const crab = this.spearTarget();
     if (crab === null) {
       this.crabAt = null;
     } else if (this.crabAt === null) {
@@ -91,6 +94,14 @@ export class HumanBot {
         g.throwTo(x, y);
       }
       return;
+    }
+
+    // Копьё шхуну не достаёт — через время реакции шаг к ней.
+    if (crab === null && g.spearOwned && g.boss.visiting) {
+      if (this.walkAt === null) this.walkAt = now + this.span(p.reactionMs);
+      if (now + TIME_EPS >= this.walkAt && this.stepToBoss()) this.walkAt = null;
+    } else {
+      this.walkAt = null;
     }
 
     if (g.weapon !== 'net') g.setWeapon('net');
@@ -123,6 +134,7 @@ export class HumanBot {
     this.release();
     this.throwAt = null;
     this.pullAt = null;
+    this.walkAt = null;
     if (g.window) {
       const ms = this.span(this.params.windowMs);
       const cards = g.window.cards;
@@ -153,14 +165,16 @@ export class HumanBot {
     throw new Error('HumanBot.pause: паузы нет');
   }
 
-  /** Ближайший к моряку враг в круге дальности копья; копья нет — null. */
-  private crab(): Enemy | null {
+  /** Цель копья — ближайшая к моряку в круге дальности: враг или, на визите, ближайшая точка корпуса шхуны. Копья нет — null. */
+  private spearTarget(): { x: number; y: number } | null {
     const g = this.game;
     if (!g.spearOwned) return null;
     const { x: sx, y: sy } = g.sailor;
-    let best: Enemy | null = null;
+    const points = g.enemies.list.map((e) => ({ x: e.x, y: e.y }));
+    if (g.boss.visiting) points.push(g.boss.nearestPoint(sx, sy));
+    let best: { x: number; y: number } | null = null;
     let bestD = Infinity;
-    for (const e of g.enemies.list) {
+    for (const e of points) {
       const d = Math.hypot(e.x - sx, e.y - sy);
       if (d <= g.spear.range && d < bestD) {
         bestD = d;
@@ -168,6 +182,29 @@ export class HumanBot {
       }
     }
     return best;
+  }
+
+  /** Шаг на соседнюю целую клетку, с которой до корпуса шхуны ближе всего и ближе, чем с нынешней. Такой нет — false. */
+  private stepToBoss(): boolean {
+    const g = this.game;
+    const toHull = (gx: number, gy: number): number => {
+      const c = g.raft.cellCenter({ gx, gy });
+      const p = g.boss.nearestPoint(c.x, c.y);
+      return Math.hypot(p.x - c.x, p.y - c.y);
+    };
+    const { gx, gy } = g.sailor;
+    let best: readonly [number, number] | null = null;
+    let bestD = toHull(gx, gy);
+    for (const d of WALK_DIRS) {
+      const c = g.raft.cell(gx + d[0], gy + d[1]);
+      if (!c || !isIntact(c)) continue;
+      const dist = toHull(c.gx, c.gy);
+      if (dist < bestD) {
+        bestD = dist;
+        best = d;
+      }
+    }
+    return best !== null && g.walk(best[0], best[1]);
   }
 
   /** Точка броска сети: лучшая «кучка» в круге дальности с упреждением и промахом; кандидатов нет — null. */

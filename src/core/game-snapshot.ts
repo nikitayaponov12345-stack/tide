@@ -1,0 +1,64 @@
+import type { BossSnapshot } from './boss';
+import type { DeckSnapshot } from './deck';
+import type { EnemiesSnapshot } from './enemies';
+import type { EventsSnapshot } from './events';
+import type { Game, OfferWindow, Weapon } from './game';
+import type { NetSnapshot } from './net';
+import type { ProgressionSnapshot } from './progression';
+import type { Cell } from './raft';
+import type { SpearSnapshot } from './spear';
+import type { StatsSnapshot } from './stats';
+import type { TowersSnapshot } from './towers';
+import type { WorldSnapshot } from './world';
+
+/** Снимок партии (ARCHITECTURE §7): снимки модулей и поля игры. Только данные — JSON возвращает его без потерь. */
+export interface GameSnapshot {
+  world: WorldSnapshot; raft: { cells: Cell[] }; sailor: { gx: number; gy: number }; net: NetSnapshot; spear: SpearSnapshot;
+  enemies: EnemiesSnapshot; progression: ProgressionSnapshot; deck: DeckSnapshot; stats: StatsSnapshot;
+  window: OfferWindow | null; build: { card: string } | null; weapon: Weapon; spearOwned: boolean; hasWalked: boolean;
+  secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
+  /** Нет в записи до M1-06: башни встают по постройкам плота с готовыми сетями. */
+  towers?: TowersSnapshot;
+  /** Нет в записи до M1-07: спокойное время с нуля, события нет. */
+  events?: EventsSnapshot;
+  /** Нет в записи до M1-08: визитов ещё не было. */
+  boss?: BossSnapshot;
+}
+
+/** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
+export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
+  const w = g.window;
+  return {
+    world: g.world.snapshot(), raft: g.raft.snapshot(), sailor: g.sailor.snapshot(), net: g.net.snapshot(),
+    spear: g.spear.snapshot(), enemies: g.enemies.snapshot(), progression: g.progression.snapshot(),
+    deck: g.deck.snapshot(), stats: g.stats.snapshot(),
+    window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })) },
+    build: g.build && { ...g.build },
+    weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
+    mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
+  };
+}
+
+/** Состояние снимка в новую партию g, кроме pending и hold. Битый снимок → throw. */
+export function restoreGame(g: Game, s: GameSnapshot): void {
+  g.world.restore(s.world);
+  g.raft.restore(s.raft);
+  g.sailor.restore(s.sailor);
+  g.net.restore(s.net);
+  g.spear.restore(s.spear);
+  g.enemies.restore(s.enemies);
+  g.progression.restore(s.progression);
+  g.deck.restore(s.deck);
+  g.stats.restore(s.stats);
+  g.window = s.window && { level: s.window.level, cards: s.window.cards.map((c) => ({ ...c })) };
+  g.build = s.build && { card: s.build.card };
+  g.weapon = s.weapon;
+  g.spearOwned = s.spearOwned;
+  g.hasWalked = s.hasWalked;
+  g.secondCellMs = s.secondCellMs;
+  g.mediumCaught = s.mediumCaught;
+  if (s.towers) g.towers.restore(s.towers);
+  g.towers.sync(g.raft);
+  if (s.events) g.events.restore(s.events);
+  if (s.boss) g.boss.restore(s.boss);
+}

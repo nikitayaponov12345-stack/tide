@@ -1,35 +1,27 @@
+import { BossVisits, type BossSide } from './boss';
 import { TIME_EPS } from './clock';
 import type { CardKind, CardRow, Tables } from './data/tables';
-import { Deck, type DeckContext, type DeckSnapshot, type OfferCard } from './deck';
-import { Enemies, type EnemiesContext, type EnemiesSnapshot } from './enemies';
-import { LocationEvents, type EventsSnapshot } from './events';
-import { Net, type CaughtItem, type NetSnapshot } from './net';
-import { Progression, type ProgressionSnapshot } from './progression';
-import { Raft, type Cell, type Spot } from './raft';
+import { Deck, type DeckContext, type OfferCard } from './deck';
+import { Enemies, type EnemiesContext } from './enemies';
+import { LocationEvents } from './events';
+import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
+import { Net, type CaughtItem } from './net';
+import { Progression } from './progression';
+import { Raft, type Spot } from './raft';
 import { Rng } from './rng';
 import { Sailor } from './sailor';
-import { Spear, type SpearSnapshot } from './spear';
-import { Stats, type StatsSnapshot } from './stats';
-import { Towers, type TowersSnapshot } from './towers';
+import { Spear, type SpearTargets } from './spear';
+import { Stats } from './stats';
+import { Towers } from './towers';
 import { buildingUpgrade, sailorUpgrade } from './upgrades';
-import { World, type WorldSnapshot } from './world';
+import { World } from './world';
 
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
 /** Окно выбора уровня level; на каждое окно — новый объект. */
 export interface OfferWindow { level: number; cards: OfferCard[] }
 export type Weapon = 'net' | 'spear';
 
-/** Снимок партии (ARCHITECTURE §7): снимки модулей и поля игры. Только данные — JSON возвращает его без потерь. */
-export interface GameSnapshot {
-  world: WorldSnapshot; raft: { cells: Cell[] }; sailor: { gx: number; gy: number }; net: NetSnapshot; spear: SpearSnapshot;
-  enemies: EnemiesSnapshot; progression: ProgressionSnapshot; deck: DeckSnapshot; stats: StatsSnapshot;
-  window: OfferWindow | null; build: { card: string } | null; weapon: Weapon; spearOwned: boolean; hasWalked: boolean;
-  secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
-  /** Нет в записи до M1-06: башни встают по постройкам плота с готовыми сетями. */
-  towers?: TowersSnapshot;
-  /** Нет в записи до M1-07: спокойное время с нуля, события нет. */
-  events?: EventsSnapshot;
-}
+export type { GameSnapshot } from './game-snapshot';
 
 /** Виды карточек в игре. */
 const KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
@@ -48,6 +40,7 @@ export class Game {
   readonly enemies: Enemies;
   readonly towers: Towers;
   readonly events: LocationEvents;
+  readonly boss: BossVisits;
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
@@ -78,6 +71,10 @@ export class Game {
   private readonly repairPerTap: number;
   /** Удержание пальца: сеть тянется, только если выбран слот сети. */
   private hold = false;
+  /** Цели копья моряка: враги и шхуна на визите. */
+  private readonly spearTargets: SpearTargets = {
+    hit: (x, y, reach, damage) => [...this.enemies.hit(x, y, reach, damage), ...this.boss.hit(x, y, reach, damage)],
+  };
 
   constructor(data: Tables, cfg: GameConfig) {
     const loc = data.location(cfg.locationId);
@@ -97,6 +94,7 @@ export class Game {
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
     this.towers = new Towers(data, cfg.locationId, new Rng(cfg.seed + 4), this.stats);
     this.events = new LocationEvents(data, cfg.locationId);
+    this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -112,43 +110,15 @@ export class Game {
 
   /** Снимок партии: копии, дальнейшая игра его не меняет. */
   snapshot(): GameSnapshot {
-    const w = this.window;
-    return {
-      world: this.world.snapshot(), raft: this.raft.snapshot(), sailor: this.sailor.snapshot(), net: this.net.snapshot(),
-      spear: this.spear.snapshot(), enemies: this.enemies.snapshot(), progression: this.progression.snapshot(),
-      deck: this.deck.snapshot(), stats: this.stats.snapshot(),
-      window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })) },
-      build: this.build && { ...this.build },
-      weapon: this.weapon, spearOwned: this.spearOwned, hasWalked: this.hasWalked, secondCellMs: this.secondCellMs,
-      mediumCaught: this.mediumCaught, pending: this.pending.slice(), hold: this.hold, towers: this.towers.snapshot(),
-      events: this.events.snapshot(),
-    };
+    return { ...snapshotGame(this), pending: this.pending.slice(), hold: this.hold };
   }
 
   /** Партия из снимка. В cfg — нынешняя раскладка (поле и speedMult) и тот же сид. Битый снимок → throw. */
   static restore(data: Tables, cfg: GameConfig, s: GameSnapshot): Game {
     const g = new Game(data, cfg);
-    g.world.restore(s.world);
-    g.raft.restore(s.raft);
-    g.sailor.restore(s.sailor);
-    g.net.restore(s.net);
-    g.spear.restore(s.spear);
-    g.enemies.restore(s.enemies);
-    g.progression.restore(s.progression);
-    g.deck.restore(s.deck);
-    g.stats.restore(s.stats);
-    g.window = s.window && { level: s.window.level, cards: s.window.cards.map((c) => ({ ...c })) };
-    g.build = s.build && { card: s.build.card };
-    g.weapon = s.weapon;
-    g.spearOwned = s.spearOwned;
-    g.hasWalked = s.hasWalked;
-    g.secondCellMs = s.secondCellMs;
-    g.mediumCaught = s.mediumCaught;
+    restoreGame(g, s);
     g.pending.push(...s.pending);
     g.hold = s.hold;
-    if (s.towers) g.towers.restore(s.towers);
-    g.towers.sync(g.raft);
-    if (s.events) g.events.restore(s.events);
     return g;
   }
 
@@ -183,8 +153,9 @@ export class Game {
   step(dtMs: number): void {
     if (this.paused) return;
     this.stats.gameMs += dtMs;
-    // Множители события действуют уже в этом шаге.
-    this.events.step(dtMs, true);
+    // Множители события действуют уже в этом шаге. Спокойное время события стоит в визит, визита — в событие.
+    this.events.step(dtMs, !this.boss.visiting);
+    this.boss.step(dtMs, !this.events.active, this.events.count, this.raft);
     this.world.flowMult = this.events.flowMult;
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
@@ -198,7 +169,7 @@ export class Game {
       this.addCatch(towerCaught);
       this.stats.towerCaught += towerCaught.length;
     }
-    if (this.spear.step(dtMs, this.enemies).length > 0) this.stats.spearHits++;
+    if (this.spear.step(dtMs, this.spearTargets).length > 0) this.stats.spearHits++;
     this.enemies.step(dtMs, this.enemiesContext());
     if (this.enemies.spawned > 0) this.spearOwned = true;
     this.stats.xpGained += this.progression.step(this.world.timeMs);
@@ -342,6 +313,11 @@ export class Game {
   /** Отладка: событие локации сейчас (идёт — начинается заново); работает и на паузе. */
   debugEvent(): void {
     this.events.start();
+  }
+
+  /** Отладка: визит босса сейчас вдоль стороны side (нет — случайной); работает и на паузе. */
+  debugBossVisit(side?: BossSide): void {
+    this.boss.start(this.raft, side);
   }
 
   /** Отладка: урон клетке сейчас (центральная неуязвима), и на паузе; ответ — сколько снято. Не укус: в bites и cellDamage не идёт. */
