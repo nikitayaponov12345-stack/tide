@@ -4,7 +4,7 @@ import { Deck, type DeckContext, type DeckSnapshot, type OfferCard } from './dec
 import { Enemies, type EnemiesContext, type EnemiesSnapshot } from './enemies';
 import { Net, type NetParams, type NetSnapshot } from './net';
 import { Progression, type ProgressionSnapshot } from './progression';
-import { Raft, type Cell } from './raft';
+import { Raft, type Cell, type Spot } from './raft';
 import { Rng } from './rng';
 import { Sailor } from './sailor';
 import { Spear, type SpearSnapshot } from './spear';
@@ -24,8 +24,10 @@ export interface GameSnapshot {
   secondCellMs: number | null; mediumCaught: boolean; pending: number[]; hold: boolean;
 }
 
-/** Виды карточек M0: постройки и их улучшения придут в M1 вместе с механиками. */
-const M0_KINDS: readonly CardKind[] = ['raft', 'sailor_upgrade'];
+/** Виды карточек в игре: улучшения построек придут в M1-06. */
+const KINDS: readonly CardKind[] = ['raft', 'building', 'sailor_upgrade'];
+/** Постройки, которые уже можно ставить (id из buildings.csv). */
+export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower'];
 /** Показатель карточки моряка → поле параметров сети. */
 const NET_STATS: Record<string, keyof NetParams> = { net_radius: 'radius', net_capacity: 'capacity', throw_range: 'range', pull: 'pull' };
 /** Роль предмета, улов которой (вместе со второй клеткой) приводит первого врага: в Лагуне — бочонок. */
@@ -88,7 +90,12 @@ export class Game {
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
-    this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), M0_KINDS);
+    // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
+    const buildings = data.locations
+      .filter((l) => l.order <= loc.order)
+      .flatMap((l) => l.newBuildings)
+      .filter((b) => BUILDINGS_IN_GAME.includes(b));
+    this.deck = new Deck(data, cfg.locationId, new Rng(cfg.seed + 1), KINDS, buildings);
     this.walkHintDelayMs = data.num('walk_hint_delay_ms');
     this.walkHintMaxLevel = data.num('walk_hint_max_level');
     this.repairPerTap = data.num('repair_per_tap');
@@ -251,7 +258,8 @@ export class Game {
     // Сначала проверки и расчёт: ошибка оставляет окно открытым, а карточку — невзятой.
     let apply: (() => void) | null = null;
     if (card.kind === 'sailor_upgrade') apply = this.upgraded(card);
-    else if (card.kind !== 'raft') throw new Error(`takeCard: вид ${card.kind} (${card.id}) ещё не в игре`);
+    else if (card.kind === 'building' && !BUILDINGS_IN_GAME.includes(card.target)) throw new Error(`takeCard: постройка ${card.target} ещё не в игре`);
+    else if (card.kind !== 'raft' && card.kind !== 'building') throw new Error(`takeCard: вид ${card.kind} (${card.id}) ещё не в игре`);
     this.deck.take(card.id, w.level);
     this.window = null;
     if (apply) {
@@ -263,10 +271,26 @@ export class Game {
     return true;
   }
 
-  /** Стройка: клетка на (gx, gy). Стройки нет, место не подходит или открыта пауза → false. */
+  /** Место (gx, gy) подходит стройке: у «Плота» — новая клетка, у постройки — свободная целая. Стройки нет → false. Паузу не смотрит. */
+  canPlace(gx: number, gy: number): boolean {
+    const card = this.buildCard();
+    if (!card) return false;
+    return card.kind === 'raft' ? this.raft.canAdd(gx, gy) : this.raft.canBuild(gx, gy);
+  }
+
+  /** Места стройки: у «Плота» — raft.candidates(), у постройки — raft.buildSpots(). Стройки нет → []. */
+  buildSpots(): Spot[] {
+    const card = this.buildCard();
+    if (!card) return [];
+    return card.kind === 'raft' ? this.raft.candidates() : this.raft.buildSpots();
+  }
+
+  /** Стройка на (gx, gy): у «Плота» — клетка, у постройки — постройка target. Стройки нет, место не подходит или открыта пауза → false. */
   placeCell(gx: number, gy: number): boolean {
-    if (this.menu || !this.build || !this.raft.canAdd(gx, gy)) return false;
-    this.raft.add(gx, gy);
+    const card = this.buildCard();
+    if (this.menu || !card || !this.canPlace(gx, gy)) return false;
+    if (card.kind === 'raft') this.raft.add(gx, gy);
+    else this.raft.build(gx, gy, card.target);
     if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
     this.build = null;
     this.openNext();
@@ -304,8 +328,15 @@ export class Game {
     this.world.setLevel(level);
   }
 
+  private buildCard(): CardRow | null {
+    return this.build && this.deck.card(this.build.card);
+  }
+
   private enemiesContext(): EnemiesContext {
-    return { raft: this.raft, level: this.progression.level, ready: this.raft.cells.length >= 2 && this.mediumCaught };
+    return {
+      raft: this.raft, level: this.progression.level, ready: this.raft.cells.length >= 2 && this.mediumCaught,
+      buildings: this.raft.buildingCount(),
+    };
   }
 
   private collectLevelUps(): void {
@@ -326,7 +357,7 @@ export class Game {
     return {
       freeCells: this.raft.freeCells(),
       canAddCell: this.raft.candidates().length > 0,
-      has: () => false,
+      has: (b) => this.raft.hasBuilding(b),
       spearOwned: this.spearOwned,
       bossVisitSeen: false,
     };

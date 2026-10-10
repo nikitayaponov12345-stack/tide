@@ -29,7 +29,7 @@ export class PlaceButton {
 
   update(layout: Layout, cellPx: number): void {
     const c = this.cursor;
-    const show = this.game.build !== null && c.shown && c.byTouch && this.game.raft.canAdd(c.gx, c.gy);
+    const show = this.game.build !== null && c.shown && c.byTouch && this.game.canPlace(c.gx, c.gy);
     this.btn.hidden = !show;
     if (!show) return;
     const vw = window.innerWidth;

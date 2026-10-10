@@ -118,7 +118,19 @@ describe('HumanBot: окно и стройка', () => {
     expect(b.card).toBeNull();
     expect(b.ms).toBeGreaterThanOrEqual(HUMAN.buildMs[0]);
     expect(b.ms).toBeLessThan(HUMAN.buildMs[1]);
-    expect(g.raft.cells).toContainEqual({ gx: 0, gy: -1, hp: DATA.num('cell_hp') });
+    expect(g.raft.cells).toContainEqual({ gx: 0, gy: -1, hp: DATA.num('cell_hp'), building: null });
+    expect(g.paused).toBe(false);
+  });
+
+  it('стройка постройки — на ближайшую к центру свободную клетку, стройка закрыта', () => {
+    const { g, bot } = calm();
+    expect(g.raft.add(1, 0)).toBe(true);
+    g.build = { card: 'net_tower' };
+    const b = bot.pause();
+    expect(b.card).toBeNull();
+    expect(g.raft.cell(0, 0)!.building).toBe('net_tower');
+    expect(g.raft.cell(1, 0)!.building).toBeNull();
+    expect(g.build).toBeNull();
     expect(g.paused).toBe(false);
   });
 

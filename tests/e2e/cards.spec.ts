@@ -191,7 +191,8 @@ test('«Поставить» уходит наверх, если закрыла 
         if (!g.command.placeCell(0, cells + 1)) throw new Error(`клетка (0, ${cells + 1}) не поставлена`);
         cells++;
       } else {
-        const i = w.cards.findIndex((c) => c.available);
+        // Не башню: её стройка не ставит клетку.
+        const i = w.cards.findIndex((c) => c.available && c.id !== 'net_tower');
         if (!g.command.takeCard(i)) throw new Error('карточка не взята');
       }
     }

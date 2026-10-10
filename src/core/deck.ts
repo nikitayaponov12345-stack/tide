@@ -8,7 +8,7 @@ export interface OfferCard { id: string; available: boolean; reason: string | nu
 export interface DeckContext {
   freeCells: number;                // raft.freeCells()
   canAddCell: boolean;              // raft.candidates().length > 0
-  has(building: string): boolean;   // такая постройка стоит на плоту (в M0 — всегда false)
+  has(building: string): boolean;   // такая постройка стоит на плоту (raft.hasBuilding)
   spearOwned: boolean;              // у моряка есть копьё (с M0-08)
   bossVisitSeen: boolean;           // был визит босса (M1)
 }
@@ -30,6 +30,8 @@ export class Deck {
     private readonly locationId: string,
     private readonly rng: Rng,
     private readonly kinds: readonly CardKind[],
+    /** Постройки, которые можно предлагать в локации; null — любые. */
+    private readonly buildings: readonly string[] | null = null,
   ) {}
 
   /** Строка cards.csv; нет такой → throw. */
@@ -119,6 +121,7 @@ export class Deck {
   private canOffer(c: CardRow, level: number, ctx: DeckContext): boolean {
     if (!this.kinds.includes(c.kind)) return false;
     if (c.kind === 'raft' && !ctx.canAddCell) return false;
+    if ((c.kind === 'building' || c.kind === 'building_upgrade') && this.buildings !== null && !this.buildings.includes(c.target)) return false;
     const t = this.takes.get(c.id);
     if (c.maxPerLocation !== null && (t?.count ?? 0) >= c.maxPerLocation) return false;
     if (c.minLevelGap !== null && t && level - t.lastLevel < c.minLevelGap) return false;

@@ -13,8 +13,8 @@ export interface Enemy {
 }
 /** Попадание по врагу: где он был и сколько прочности снято. */
 export interface EnemyHit { x: number; y: number; dealt: number }
-/** Что враги видят у игры на шаге; ready — условие первого врага выполнено. */
-export interface EnemiesContext { raft: Raft; level: number; ready: boolean }
+/** Что враги видят у игры на шаге; ready — условие первого врага выполнено; buildings — число построек (нет — 0). */
+export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number }
 
 export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
 
@@ -89,8 +89,8 @@ export class Enemies {
     if (this.speed === null) return;
     for (const e of [...this.list]) this.advance(e, dtMs, ctx.raft);
     if (this.started) {
-      // В M0 построек нет. Враг, появившийся внутри шага, проходит остаток шага.
-      const interval = this.intervalMs(0);
+      // Враг, появившийся внутри шага, проходит остаток шага. Интервал стал короче накопленного — враг сразу.
+      const interval = this.intervalMs(ctx.buildings ?? 0);
       this.acc += dtMs;
       while (this.acc + TIME_EPS >= interval) {
         this.acc -= interval;

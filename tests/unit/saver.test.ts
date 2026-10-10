@@ -67,7 +67,7 @@ describe('Saver', () => {
     game.debugLevelUp();
     saver.frame();
     expect(saves).toHaveLength(4);
-    const i = game.window!.cards.findIndex((card) => card.available && game.deck.card(card.id).kind !== 'raft');
+    const i = game.window!.cards.findIndex((card) => card.available && game.deck.card(card.id).kind === 'sailor_upgrade');
     expect(game.takeCard(i)).toBe(true);
     expect(game.paused).toBe(false);
     saver.frame();

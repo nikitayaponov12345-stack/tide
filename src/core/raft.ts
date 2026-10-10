@@ -2,8 +2,8 @@ import type { Tables } from './data/tables';
 
 /** Место сетки; (0, 0) — центральная клетка. */
 export interface Spot { gx: number; gy: number }
-/** Клетка плота: место и прочность. */
-export interface Cell extends Spot { hp: number }
+/** Клетка плота: место, прочность и постройка — id из buildings.csv или null. */
+export interface Cell extends Spot { hp: number; building: string | null }
 /** Степень вида клетки по четвертям прочности: 0 — больше трёх четвертей, 4 — разбита. */
 export type CellStage = 0 | 1 | 2 | 3 | 4;
 
@@ -25,7 +25,7 @@ export class Raft {
     this.cellPx = data.num('cell_px');
     this.half = (data.num('raft_grid') - 1) / 2;
     this.cellHp = data.num('cell_hp');
-    this.cells = [{ gx: 0, gy: 0, hp: this.cellHp }];
+    this.cells = [{ gx: 0, gy: 0, hp: this.cellHp, building: null }];
   }
 
   /** Центр клетки в координатах мира. */
@@ -66,7 +66,7 @@ export class Raft {
   }
 
   /** Степень вида: по четвертям cellHp. */
-  stage(c: Cell): CellStage {
+  stage(c: Spot & { hp: number }): CellStage {
     if (c.hp > (this.cellHp * 3) / 4) return 0;
     if (c.hp > this.cellHp / 2) return 1;
     if (c.hp > this.cellHp / 4) return 2;
@@ -95,22 +95,53 @@ export class Raft {
 
   add(gx: number, gy: number): boolean {
     if (!this.canAdd(gx, gy)) return false;
-    this.cells.push({ gx, gy, hp: this.cellHp });
+    this.cells.push({ gx, gy, hp: this.cellHp, building: null });
     return true;
+  }
+
+  /** Постройку можно поставить: клетка есть, цела и без постройки. Центральная и клетка под моряком подходят. */
+  canBuild(gx: number, gy: number): boolean {
+    const c = this.cell(gx, gy);
+    return c !== undefined && isIntact(c) && c.building === null;
+  }
+
+  /** Поставить постройку id на клетку; нельзя по canBuild — false. */
+  build(gx: number, gy: number, id: string): boolean {
+    if (!this.canBuild(gx, gy)) return false;
+    this.cell(gx, gy)!.building = id;
+    return true;
+  }
+
+  /** Места для постройки — свободные целые клетки: по gy, потом по gx. */
+  buildSpots(): Spot[] {
+    return this.cells
+      .filter((c) => isIntact(c) && c.building === null)
+      .map(({ gx, gy }) => ({ gx, gy }))
+      .sort((a, b) => a.gy - b.gy || a.gx - b.gx);
+  }
+
+  /** Сколько построек на плоту, в том числе на разбитых клетках. */
+  buildingCount(): number {
+    return this.cells.filter((c) => c.building !== null).length;
+  }
+
+  /** Есть постройка id, в том числе на разбитой клетке. */
+  hasBuilding(id: string): boolean {
+    return this.cells.some((c) => c.building === id);
   }
 
   snapshot(): { cells: Cell[] } {
     return { cells: this.cells.map((c) => ({ ...c })) };
   }
 
-  /** Клетка без hp (запись до M1-03) — целая. */
-  restore(s: { cells: Array<Spot & { hp?: number }> }): void {
+  /** Клетка без hp (запись до M1-03) — целая; без building (запись до M1-05) — без постройки. */
+  restore(s: { cells: Array<Spot & { hp?: number; building?: string | null }> }): void {
     this.cells.length = 0;
-    for (const c of s.cells) this.cells.push({ gx: c.gx, gy: c.gy, hp: c.hp ?? this.cellHp });
+    for (const c of s.cells) this.cells.push({ gx: c.gx, gy: c.gy, hp: c.hp ?? this.cellHp, building: c.building ?? null });
   }
 
-  /** Целые клетки без постройки. Построек пока нет — все целые (центральная тоже, как у оригинала). */
+  /** Целые клетки без постройки (центральная тоже, как у оригинала). */
   freeCells(): number {
-    return this.cells.filter(isIntact).length;
+    return this.cells.filter((c) => isIntact(c) && c.building === null).length;
   }
 }

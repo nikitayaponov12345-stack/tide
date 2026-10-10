@@ -75,7 +75,7 @@ describe('Game', () => {
         continue;
       }
       if (g.build) {
-        const c = g.raft.candidates()[0]!;
+        const c = g.buildSpots()[0]!;
         g.placeCell(c.gx, c.gy);
         continue;
       }
@@ -230,7 +230,7 @@ describe('Game: окно выбора и стройка', () => {
     for (let i = 0; i < 60 && !took; i++) {
       if (!g.paused) g.debugLevelUp();
       if (g.build) {
-        const c = g.raft.candidates()[0]!;
+        const c = g.buildSpots()[0]!;
         g.placeCell(c.gx, c.gy);
         continue;
       }
@@ -267,11 +267,11 @@ describe('Game: окно выбора и стройка', () => {
     expect(g.net.netParams.range).toBe(before.range);
   });
 
-  it('карточка, которая не меняет ни сеть, ни копьё, — ошибка, окно остаётся открытым', () => {
+  it('карточка, которая не меняет ни сеть, ни копьё, или постройка не в игре — ошибка, окно остаётся открытым', () => {
     // У «Копьё сильнее» с M0-08 есть механика: берём копию таблицы с выдуманным показателем.
     const data: Tables = { ...DATA, cards: DATA.cards.map((c) => (c.id === 'net_wider' ? { ...c, stat: 'made_up' } : c)) };
     const g = new Game(data, CFG);
-    for (const id of ['net_wider', 'net_tower']) {
+    for (const id of ['net_wider', 'whirlpool']) {
       const w = { level: 5, cards: [{ id, available: true, reason: null }] };
       g.window = w;
       expect(() => g.takeCard(0)).toThrow();

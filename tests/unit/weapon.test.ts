@@ -90,7 +90,7 @@ describe('Game: слоты оружия', () => {
         g.debugLevelUp();
         while (g.window || g.build) {
           if (g.build) {
-            const c = g.raft.candidates()[0]!;
+            const c = g.buildSpots()[0]!;
             g.placeCell(c.gx, c.gy);
             continue;
           }

@@ -17,18 +17,19 @@ const load = (s: GameSnapshot, cfg: GameConfig = CFG): Game => Game.restore(DATA
 
 /**
  * Игрок теста без своей памяти: решает только по состоянию игры, поэтому после загрузки ведёт себя так же.
- * Окно — «Плот», если доступен, иначе первая доступная; стройка — первое место; шаг на вторую клетку;
+ * Окно — сетевая башня, если доступна, иначе «Плот», если доступен, иначе первая доступная; стройка — первое место; шаг на вторую клетку;
  * краб, который уже укусил (не approach), при копье — копьём в него, иначе сеть: ready — бросок в ближайший к центру предмет, lying — тянуть.
  */
 function decide(g: Game): void {
   if (g.window) {
     const cards = g.window.cards;
+    const tower = cards.findIndex((c) => c.available && c.id === 'net_tower');
     const raft = cards.findIndex((c) => c.available && g.deck.card(c.id).kind === 'raft');
-    g.takeCard(raft >= 0 ? raft : cards.findIndex((c) => c.available));
+    g.takeCard(tower >= 0 ? tower : raft >= 0 ? raft : cards.findIndex((c) => c.available));
     return;
   }
   if (g.build) {
-    const c = g.raft.candidates()[0]!;
+    const c = g.buildSpots()[0]!;
     g.placeCell(c.gx, c.gy);
     return;
   }
@@ -75,6 +76,7 @@ const CASES: Record<string, (g: Game) => boolean> = {
   spearFlying: (g) => g.spear.state === 'flying',
   icons: (g) => g.progression.icons.length > 0,
   cellHurt: (g) => g.raft.cells.some((c) => c.hp < g.raft.cellHp),
+  building: (g) => g.raft.cells.some((c) => c.building !== null),
 };
 
 describe('Снимок партии', () => {
@@ -85,7 +87,7 @@ describe('Снимок партии', () => {
     expect(viaJson(load(s).snapshot())).toEqual(s);
   });
 
-  it('продолжение с записи в любом из восьми случаев идёт так же, как прогон без перерыва', () => {
+  it('продолжение с записи в любом из девяти случаев идёт так же, как прогон без перерыва', () => {
     const g = new Game(DATA, CFG);
     const saves: Array<{ name: string; at: number; snap: GameSnapshot }> = [];
     for (let t = 0; t < RUN_TACTS; t++) {
@@ -116,6 +118,21 @@ describe('Снимок партии', () => {
     const r = load(s);
     expect(r.raft.cells).toHaveLength(2);
     for (const cell of r.raft.cells) expect(cell.hp).toBe(DATA.num('cell_hp'));
+  });
+
+  it('запись до M1-05: клетки без building после restore свободны', () => {
+    const g = new Game(DATA, CFG);
+    g.debugLevelUp();
+    g.takeCard(0);
+    const c = g.raft.candidates()[0]!;
+    g.placeCell(c.gx, c.gy);
+    const s = viaJson(g.snapshot());
+    for (const cell of s.raft.cells) delete (cell as { building?: string | null }).building;
+    const r = load(s);
+    expect(r.raft.cells).toHaveLength(2);
+    for (const cell of r.raft.cells) expect(cell.building).toBeNull();
+    expect(r.raft.freeCells()).toBe(2);
+    expect(r.raft.buildingCount()).toBe(0);
   });
 
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {

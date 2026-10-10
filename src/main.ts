@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.11';
+const VERSION = '0.0.12';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -195,7 +195,7 @@ async function boot(): Promise<void> {
       stats: { ...stats, xpByRole: { ...stats.xpByRole } },
       sailor: { gx: sailor.gx, gy: sailor.gy, x: sailor.x, y: sailor.y },
       window: game.window && { level: game.window.level, cards: game.window.cards.map((c) => ({ ...c })) },
-      build: game.build && { card: game.build.card, candidates: raft.candidates() },
+      build: game.build && { card: game.build.card, candidates: game.buildSpots() },
       raft: raft.cells.map((c) => ({ ...c })),
       walkHint: game.walkHint,
       menu: game.menu,

@@ -140,14 +140,14 @@ export class HumanBot {
       const ms = this.span(this.params.buildMs);
       let best: { gx: number; gy: number } | null = null;
       let bestScore = Infinity;
-      for (const c of g.raft.candidates()) {
+      for (const c of g.buildSpots()) {
         const s = c.gx * c.gx + c.gy * c.gy + (c.gy > 0 ? BUILD_BIAS_DOWN : 0) + (c.gx < 0 ? BUILD_BIAS_LEFT : 0);
         if (s < bestScore) {
           bestScore = s;
           best = c;
         }
       }
-      if (best === null || !g.placeCell(best.gx, best.gy)) throw new Error('HumanBot: стройка — клетка не встала');
+      if (best === null || !g.placeCell(best.gx, best.gy)) throw new Error('HumanBot: стройка — место не нашлось');
       return { ms, card: null };
     }
     throw new Error('HumanBot.pause: паузы нет');

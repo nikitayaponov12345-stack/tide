@@ -48,10 +48,10 @@ export interface GameDebug {
     sailor: { gx: number; gy: number; x: number; y: number };
     /** Окно выбора: карточки в порядке показа. */
     window: null | { level: number; cards: Array<{ id: string; available: boolean; reason: string | null }> };
-    /** Стройка: карточка и места для новой клетки. */
+    /** Стройка: карточка и места стройки (у «Плота» — для новой клетки, у постройки — свободные целые клетки). */
     build: null | { card: string; candidates: Array<{ gx: number; gy: number }> };
-    /** Клетки плота с прочностью. */
-    raft: Array<{ gx: number; gy: number; hp: number }>;
+    /** Клетки плота с прочностью и постройкой (id из buildings.csv или null). */
+    raft: Array<{ gx: number; gy: number; hp: number; building: string | null }>;
     /** Подсказка о ходьбе видна (правило ядра Game.walkHint). */
     walkHint: boolean;
     /** Открыто окно паузы. */

@@ -1,6 +1,6 @@
 id,kind,target,stat,value,mode,max_per_location,min_level_gap,requires,name_key,desc_key
 raft,raft,raft,cells,1,add,,,,card.raft,card.raft.desc
-net_tower,building,net_tower,,,,,,,card.net_tower,card.net_tower.desc
+net_tower,building,net_tower,,,,,,level:4,card.net_tower,card.net_tower.desc
 spear_tower,building,spear_tower,,,,,,boss_visit_seen,card.spear_tower,card.spear_tower.desc
 whirlpool,building,whirlpool,,,,,,level:6,card.whirlpool,card.whirlpool.desc
 autorepair,building,autorepair,,,,,,,card.autorepair,card.autorepair.desc

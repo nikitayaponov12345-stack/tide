@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Role } from '../core/data/tables';
 import type { Game } from '../core/game';
+import { isIntact } from '../core/raft';
 import type { BuildCursor } from './input/build';
 import { DESIGN, XP_BAR, type Layout } from './layout';
 
@@ -19,6 +20,8 @@ const COUNTER_COLOR = { ok: 0x7bd88f, half: 0xffd166, full: 0xff6b6b };
 /** Клетка по степени вида raft.stage: целая, три степени темнее, разбитая — серая. */
 const RAFT_COLOR = [0xc58b4f, 0xa8743f, 0x8b5e32, 0x6e4a27, 0x8a8a8a] as const;
 const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
+/** Постройка — круг цвета карточки постройки, радиус в долях клетки; на разбитой клетке — бледная. */
+const BUILDING = { color: 0x2a9d8f, radius: 0.4, stroke: { width: 2, color: 0xffffff }, brokenAlpha: 0.35 } as const;
 /** Обводка повреждённых клеток в ремонте. */
 const REPAIR_STROKE = { width: 3, color: 0xffd166 } as const;
 /** Места для новой клетки в стройке — бледные. */
@@ -38,7 +41,7 @@ export interface ViewOptions {
 }
 
 /**
- * Рабочая отрисовка: вода, плот (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
+ * Рабочая отрисовка: вода, плот с постройками (в стройке — места для клетки и призрак, в ремонте — обводка повреждённых клеток), моряк, круг дальности, предметы и добыча, враги с прочностью,
  * сеть и копьё с верёвкой, значки опыта.
  * Мир рисуется со сдвигом на центр поля дизайна и обрезается по полю; только читает состояние ядра.
  */
@@ -85,11 +88,20 @@ export class View {
     this.raft.clear();
     for (const c of raft.cells) this.tile(this.raft, c.gx, c.gy).fill(RAFT_COLOR[raft.stage(c)]);
     if (game.repair) for (const c of raft.cells) if (c.hp < raft.cellHp) this.tile(this.raft, c.gx, c.gy).stroke(REPAIR_STROKE);
+    const cell = this.opts.cellPx;
+    for (const c of raft.cells) {
+      if (c.building === null) continue;
+      const alpha = isIntact(c) ? 1 : BUILDING.brokenAlpha;
+      this.raft
+        .circle(c.gx * cell, c.gy * cell, BUILDING.radius * cell)
+        .fill({ color: BUILDING.color, alpha })
+        .stroke({ ...BUILDING.stroke, alpha });
+    }
     this.ghost.clear();
     if (game.build) {
-      for (const c of raft.candidates()) this.tile(this.raft, c.gx, c.gy).fill({ color: 0xffffff, alpha: CANDIDATE_ALPHA });
+      for (const c of game.buildSpots()) this.tile(this.raft, c.gx, c.gy).fill({ color: 0xffffff, alpha: CANDIDATE_ALPHA });
       if (cursor.shown) {
-        const ok = raft.canAdd(cursor.gx, cursor.gy);
+        const ok = game.canPlace(cursor.gx, cursor.gy);
         this.tile(this.ghost, cursor.gx, cursor.gy).fill({ color: ok ? GHOST_COLOR.ok : GHOST_COLOR.bad, alpha: 0.6 });
       }
     }

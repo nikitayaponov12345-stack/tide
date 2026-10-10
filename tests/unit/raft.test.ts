@@ -9,7 +9,7 @@ describe('Raft', () => {
   it('одна центральная клетка; центр клетки — gx × cell_px', () => {
     const raft = new Raft(DATA);
     const cell = DATA.num('cell_px');
-    expect(raft.cells).toEqual([{ gx: 0, gy: 0, hp: HP }]);
+    expect(raft.cells).toEqual([{ gx: 0, gy: 0, hp: HP, building: null }]);
     expect(raft.half).toBe(HALF);
     expect(raft.cellCenter({ gx: 2, gy: -1 })).toEqual({ x: 2 * cell, y: -cell });
   });
@@ -56,7 +56,7 @@ describe('Raft', () => {
     expect(raft.cellHp).toBe(HP);
     raft.add(1, 0);
     expect(raft.cell(0, 0)?.hp).toBe(HP);
-    expect(raft.cell(1, 0)).toEqual({ gx: 1, gy: 0, hp: HP });
+    expect(raft.cell(1, 0)).toEqual({ gx: 1, gy: 0, hp: HP, building: null });
     expect(raft.cell(2, 0)).toBeUndefined();
   });
 
@@ -109,6 +109,42 @@ describe('Raft', () => {
     r.restore(s);
     expect(r.cells).toEqual(raft.cells);
     r.restore({ cells: [{ gx: 0, gy: 0 }, { gx: 1, gy: 0 }] });
-    expect(r.cells).toEqual([{ gx: 0, gy: 0, hp: HP }, { gx: 1, gy: 0, hp: HP }]);
+    expect(r.cells).toEqual([{ gx: 0, gy: 0, hp: HP, building: null }, { gx: 1, gy: 0, hp: HP, building: null }]);
+  });
+
+  it('постройка — на целую свободную клетку, в том числе центральную; разбитая клетка с постройкой не свободна', () => {
+    const raft = new Raft(DATA);
+    raft.add(1, 0);
+    raft.add(-1, 0);
+    raft.add(0, 1);
+    raft.damage(-1, 0, HP);
+    expect(raft.freeCells()).toBe(3);
+    expect(raft.canBuild(0, 0)).toBe(true);
+    expect(raft.build(0, 0, 'net_tower')).toBe(true);
+    expect(raft.cell(0, 0)!.building).toBe('net_tower');
+    expect(raft.build(0, 0, 'net_tower')).toBe(false);
+    expect(raft.build(-1, 0, 'net_tower')).toBe(false);
+    expect(raft.build(2, 0, 'net_tower')).toBe(false);
+    expect(raft.canBuild(0, 0)).toBe(false);
+    expect(raft.buildSpots()).toEqual([{ gx: 1, gy: 0 }, { gx: 0, gy: 1 }]);
+    expect(raft.freeCells()).toBe(2);
+    expect(raft.buildingCount()).toBe(1);
+    expect(raft.hasBuilding('net_tower')).toBe(true);
+    expect(raft.hasBuilding('spear_tower')).toBe(false);
+    // Клетку с постройкой разбили: постройка считается, клетка не свободна.
+    expect(raft.build(1, 0, 'spear_tower')).toBe(true);
+    raft.damage(1, 0, HP);
+    expect(raft.buildingCount()).toBe(2);
+    expect(raft.hasBuilding('spear_tower')).toBe(true);
+    expect(raft.freeCells()).toBe(1);
+    expect(raft.buildSpots()).toEqual([{ gx: 0, gy: 1 }]);
+  });
+
+  it('buildSpots — по gy, потом по gx', () => {
+    const raft = new Raft(DATA);
+    for (const [gx, gy] of [[0, 1], [1, 1], [-1, 1], [0, -1], [1, -1], [-1, 0]] as const) expect(raft.add(gx, gy)).toBe(true);
+    expect(raft.buildSpots()).toEqual([
+      { gx: 0, gy: -1 }, { gx: 1, gy: -1 }, { gx: -1, gy: 0 }, { gx: 0, gy: 0 }, { gx: -1, gy: 1 }, { gx: 0, gy: 1 }, { gx: 1, gy: 1 },
+    ]);
   });
 });
