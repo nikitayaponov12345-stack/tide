@@ -43,17 +43,19 @@ export class Control {
 
   /**
    * Реклама за награду: «игра остановлена» до неё (если игрок уже играл), «игра идёт» после, если нет окна выбора и паузы.
+   * Игра уже стоит (окно выбора, пауза — M1-14: воронка из окна) — сигналов нет.
    * Исключение при показе — «не досмотрена». Ответ — досмотрена ли.
    */
   async rewarded(show: () => Promise<boolean>): Promise<boolean> {
-    if (this.playing) this.platform.gameplayStop();
+    const stop = this.playing && this.stopper() === null;
+    if (stop) this.platform.gameplayStop();
     let ok = false;
     try {
       ok = await show();
     } catch {
       ok = false;
     }
-    if (this.playing && this.stopper() === null) this.platform.gameplayStart();
+    if (stop && this.stopper() === null) this.platform.gameplayStart();
     return ok;
   }
 

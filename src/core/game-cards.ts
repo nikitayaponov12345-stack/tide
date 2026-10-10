@@ -78,6 +78,25 @@ function buildCard(g: Game): CardRow | null {
   return g.build && g.deck.card(g.build.card);
 }
 
+/** Воронка открыта рекламой на всю кампанию (M1-14); открытое окно пересчитывает доступность. Нет рекламы за награду или уже открыта → false. */
+export function unlockWhirlpool(g: Game): boolean {
+  if (!g.rewarded || g.whirlpoolUnlocked) return false;
+  g.whirlpoolUnlocked = true;
+  if (g.window) g.window.cards = g.deck.refresh(g.window.cards, deckContext(g));
+  return true;
+}
+
+/** Отладка: опыт до следующего уровня сразу; окно открывается тут же. В stats.xpGained не входит. */
+export function debugLevelUp(g: Game): void {
+  const p = g.progression;
+  const level = p.level;
+  p.addXp(p.xpToNext() - p.xp);
+  // xp + (step − xp) может не дотянуть до step на долю ulp — тогда добираем чуть с запасом.
+  if (p.level === level) p.addXp((p.xpToNext() - p.xp) * (1 + 1e-9));
+  collectLevelUps(g);
+  openNext(g);
+}
+
 function deckContext(g: Game): DeckContext {
   return {
     freeCells: g.raft.freeCells(),
@@ -85,5 +104,6 @@ function deckContext(g: Game): DeckContext {
     has: (b) => g.raft.hasBuilding(b),
     spearOwned: g.spearOwned,
     bossVisitSeen: g.boss.visits > 0,
+    adLocked: g.rewarded && !g.whirlpoolUnlocked,
   };
 }

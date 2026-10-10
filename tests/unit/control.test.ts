@@ -72,4 +72,17 @@ describe('Control', () => {
     control.frame(STEP_MS);
     expect(calls).toEqual(['start']);
   });
+
+  it('реклама за награду: без окна — stop, затем start; при открытом окне сигналов нет (M1-14)', async () => {
+    const { game, control, calls } = setup();
+    control.notePlay();
+    control.frame(STEP_MS);
+    expect(await control.rewarded(async () => true)).toBe(true);
+    expect(calls).toEqual(['start', 'stop', 'start']);
+    game.debugLevelUp();
+    control.frame(STEP_MS);
+    expect(calls).toEqual(['start', 'stop', 'start', 'stop']);
+    expect(await control.rewarded(async () => true)).toBe(true);
+    expect(calls).toEqual(['start', 'stop', 'start', 'stop']);
+  });
 });

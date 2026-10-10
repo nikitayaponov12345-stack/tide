@@ -1,6 +1,7 @@
 import { BOTTLE_ROLE } from '../core/boost';
 import { TIME_EPS } from '../core/clock';
 import type { Tables } from '../core/data/tables';
+import { AD_LOCKED } from '../core/deck';
 import type { Game } from '../core/game';
 import { isIntact } from '../core/raft';
 import type { Rng } from '../core/rng';
@@ -63,7 +64,8 @@ const BUILD_BIAS_LEFT = 0.2;
 /** Шаги к шхуне, если копьё её не достаёт: при равенстве — вниз, вправо, влево, вверх. */
 const WALK_DIRS: ReadonlyArray<readonly [number, number]> = [[0, 1], [1, 0], [-1, 0], [0, -1]];
 
-export interface PauseResult { ms: number; card: string | null }
+/** rewarded — за паузу бот смотрел рекламу за награду (буст или воронка). */
+export interface PauseResult { ms: number; card: string | null; rewarded?: boolean }
 
 /** Бот «человек» на ядре Game: подаёт те же команды, что палец (CLAUDE.md, правило 9). Ходит только к шхуне на визите. */
 export class HumanBot {
@@ -162,13 +164,16 @@ export class HumanBot {
     if (g.ad) {
       const ms = this.span(this.params.adMs);
       g.adDone(true);
-      return { ms, card: null };
+      return { ms, card: null, rewarded: true };
     }
     this.throwAt = null;
     this.pullAt = null;
     this.walkAt = null;
     if (g.window) {
-      const ms = this.span(this.params.windowMs);
+      // Закрытая воронка: как живой игрок на ПК, бот открывает её при первом показе.
+      const rewarded = g.window.cards.some((c) => c.reason === AD_LOCKED) && g.unlockWhirlpool();
+      const adMs = rewarded ? this.span(this.params.adMs) : 0;
+      const ms = this.span(this.params.windowMs) + adMs;
       const cards = g.window.cards;
       let i = -1;
       for (const id of CARD_ORDER) {
@@ -178,7 +183,7 @@ export class HumanBot {
       if (i < 0) i = cards.findIndex((c) => c.available);
       const card = cards[i]?.id;
       if (card === undefined || !g.takeCard(i)) throw new Error(`HumanBot: окно ${g.window.level} — карточка не взята`);
-      return { ms, card };
+      return { ms, card, rewarded };
     }
     if (g.build) {
       const ms = this.span(this.params.buildMs);

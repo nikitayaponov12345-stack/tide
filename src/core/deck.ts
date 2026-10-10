@@ -11,12 +11,14 @@ export interface DeckContext {
   has(building: string): boolean;   // такая постройка стоит на плоту (raft.hasBuilding)
   spearOwned: boolean;              // у моряка есть копьё (с M0-08)
   bossVisitSeen: boolean;           // был визит босса (M1)
+  adLocked?: boolean;               // постройки с ad_unlock = 1 закрыты до просмотра рекламы (M1-14); нет поля — не закрыты
 }
 
 /** visitShown нет в записи до M1-09 — false. */
 export interface DeckSnapshot { takes: Array<[string, { count: number; lastLevel: number }]>; rng: number; visitShown?: boolean }
 
 export const NEED_FREE_CELL = 'ui.need_free_cell';
+export const AD_LOCKED = 'ui.ad_locked';
 
 /**
  * Колода локации: что предлагать в окне выбора и сколько раз что взято.
@@ -28,6 +30,8 @@ export class Deck {
   private readonly takes = new Map<string, { count: number; lastLevel: number }>();
   /** Карточка «после визита» уже была в окне доступной. */
   private visitShown = false;
+  /** Постройки с ad_unlock = 1 в buildings.csv: открываются рекламой (M1-14). */
+  private readonly adUnlock: ReadonlySet<string>;
 
   constructor(
     private readonly data: Tables,
@@ -36,7 +40,9 @@ export class Deck {
     private readonly kinds: readonly CardKind[],
     /** Постройки, которые можно предлагать в локации; null — любые. */
     private readonly buildings: readonly string[] | null = null,
-  ) {}
+  ) {
+    this.adUnlock = new Set(data.buildings.filter((r) => Number(r.ad_unlock) === 1).map((r) => String(r.id)));
+  }
 
   /** Строка cards.csv; нет такой → throw. */
   card(id: string): CardRow {
@@ -120,6 +126,11 @@ export class Deck {
     return sorted;
   }
 
+  /** Доступность тех же карточек заново, порядок прежний: для открытого окна (M1-14). */
+  refresh(cards: readonly OfferCard[], ctx: DeckContext): OfferCard[] {
+    return cards.map((c) => this.availability(this.card(c.id), ctx));
+  }
+
   /** Карточка строки after:boss_visit этой локации; нет — null. */
   private visitCard(): CardRow | null {
     const row = this.data.forcedCards.find((f) => f.location === this.locationId && f.trigger === 'after:boss_visit');
@@ -131,6 +142,7 @@ export class Deck {
   }
 
   private availability(c: CardRow, ctx: DeckContext): OfferCard {
+    if (c.kind === 'building' && ctx.adLocked && this.adUnlock.has(c.target)) return { id: c.id, available: false, reason: AD_LOCKED };
     if (c.kind === 'building' && ctx.freeCells === 0) return { id: c.id, available: false, reason: NEED_FREE_CELL };
     return { id: c.id, available: true, reason: null };
   }

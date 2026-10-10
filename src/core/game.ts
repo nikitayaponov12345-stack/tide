@@ -6,7 +6,7 @@ import { FLOW_ROLES, type CardKind, type Tables } from './data/tables';
 import { Deck, type OfferCard } from './deck';
 import { Enemies, type EnemiesContext } from './enemies';
 import { LocationEvents } from './events';
-import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, openNext, placeCell, takeCard } from './game-cards';
+import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, debugLevelUp, openNext, placeCell, takeCard, unlockWhirlpool } from './game-cards';
 import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
 import { Net, type CaughtItem } from './net';
 import { Progression } from './progression';
@@ -20,8 +20,8 @@ import { Towers } from './towers';
 import { Whirlpools } from './whirlpools';
 import { World } from './world';
 
-/** rewarded — у площадки есть реклама за награду (нет поля — есть). */
-export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean }
+/** rewarded — у площадки есть реклама за награду (нет поля — есть); whirlpoolUnlocked — воронку уже открыли в кампании (нет поля — нет). */
+export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean; whirlpoolUnlocked?: boolean }
 /** Окно выбора уровня level; на каждое окно — новый объект. */
 export interface OfferWindow { level: number; cards: OfferCard[] }
 export type Weapon = 'net' | 'spear';
@@ -61,6 +61,10 @@ export class Game {
   repair = false;
   /** Идёт реклама за награду: мир стоит. В снимок не входит: после загрузки рекламы нет и награды нет. */
   ad = false;
+  /** У площадки есть реклама за награду. */
+  readonly rewarded: boolean;
+  /** Воронка открыта на всю кампанию (M1-14). В снимок не входит: это запись кампании. */
+  whirlpoolUnlocked: boolean;
   /** Выбранный слот оружия. */
   weapon: Weapon = 'net';
   /** У моряка есть копьё (с первым врагом): видны слоты, в колоде — «Копьё сильнее». */
@@ -107,7 +111,9 @@ export class Game {
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
     this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
-    this.boostOffer = new BoostOffer(data, cfg.rewarded ?? true);
+    this.rewarded = cfg.rewarded ?? true;
+    this.whirlpoolUnlocked = cfg.whirlpoolUnlocked ?? false;
+    this.boostOffer = new BoostOffer(data, this.rewarded);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -142,6 +148,7 @@ export class Game {
 
   /** Окно паузы. Уровень, набранный до неё, открывает окно на первом шаге после. */
   setMenu(on: boolean): void {
+    if (on && this.ad) return; // во время рекламы не открывается
     this.menu = on;
   }
 
@@ -312,13 +319,12 @@ export class Game {
 
   /** Отладка: опыт до следующего уровня сразу; окно открывается тут же. В stats.xpGained не входит. */
   debugLevelUp(): void {
-    const p = this.progression;
-    const level = p.level;
-    p.addXp(p.xpToNext() - p.xp);
-    // xp + (step − xp) может не дотянуть до step на долю ulp — тогда добираем чуть с запасом.
-    if (p.level === level) p.addXp((p.xpToNext() - p.xp) * (1 + 1e-9));
-    collectLevelUps(this);
-    openNext(this);
+    debugLevelUp(this);
+  }
+
+  /** Воронка открыта рекламой на всю кампанию; открытое окно пересчитывает доступность. Нет рекламы за награду или уже открыта → false. */
+  unlockWhirlpool(): boolean {
+    return unlockWhirlpool(this);
   }
 
   /**

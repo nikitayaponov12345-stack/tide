@@ -104,6 +104,8 @@ export interface GameDebug {
     boostOffer: { enabled: boolean; visible: boolean; leftMs: number; ms: number; nextMs: number; shown: number; taken: number };
     /** Идёт реклама за награду: мир стоит. */
     ad: boolean;
+    /** Воронка открыта рекламой на всю кампанию (M1-14). */
+    whirlpoolUnlocked: boolean;
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {

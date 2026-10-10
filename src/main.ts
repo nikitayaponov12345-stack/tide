@@ -24,7 +24,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.20';
+const VERSION = '0.0.21';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -56,9 +56,14 @@ async function boot(): Promise<void> {
   }
   const saved = await platform.load(SAVE_KEY);
   const newer = isNewerSave(saved);
-  const cfg = { ...worldSize(stage.layout), locationId: LOCATION, seed: SEED, rewarded: platform.rewardedAvailable() };
+  const parsed = parseSave(saved);
+  const cfg = {
+    ...worldSize(stage.layout), locationId: LOCATION, seed: SEED, rewarded: platform.rewardedAvailable(),
+    // запись кампании, а не партии
+    whirlpoolUnlocked: parsed?.campaign?.whirlpoolUnlocked === true,
+  };
   let restored: Game | null = null;
-  const run = parseSave(saved)?.run;
+  const run = parsed?.run;
   if (run && run.locationId === LOCATION) {
     try {
       restored = Game.restore(DATA, { ...cfg, seed: run.seed }, run.game);
@@ -109,7 +114,17 @@ async function boot(): Promise<void> {
   });
   // Затемнение паузы — поверх молотка (z-index); при окне выбора и в стройке молоток скрыт.
   const repair = new RepairButton(ui, game, text);
-  const cards = new CardWindow(ui, game, text);
+  let unlocking = false;
+  const cards = new CardWindow(ui, game, text, () => {
+    if (unlocking) return;
+    unlocking = true;
+    void control
+      .rewarded(() => platform.showRewarded())
+      .then((ok) => {
+        if (ok && game.unlockWhirlpool()) saver.save();
+      })
+      .finally(() => (unlocking = false));
+  });
   const cursor = new BuildCursor(cellPx);
   const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
@@ -232,6 +247,7 @@ async function boot(): Promise<void> {
         game.boostOffer,
       ),
       ad: game.ad,
+      whirlpoolUnlocked: game.whirlpoolUnlocked,
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),

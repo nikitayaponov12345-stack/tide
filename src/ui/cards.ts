@@ -1,4 +1,5 @@
 import type { CardKind } from '../core/data/tables';
+import { AD_LOCKED, type OfferCard } from '../core/deck';
 import type { Game, OfferWindow } from '../core/game';
 import { DESIGN, fitDesign, type Layout } from '../game/layout';
 
@@ -19,6 +20,13 @@ const BOX: Record<Layout, {
   landscape: { titleY: 70, subY: 150, top: 220, cardW: 300, cardH: 330, gap: 40, takeW: 220, takeH: 70, takeGap: 24 },
   portrait: { titleY: 170, subY: 260, top: 340, cardW: 620, cardH: 200, gap: 24, takeW: 320, takeH: 90, takeGap: 40 },
 };
+/**
+ * «Открыть за рекламу» у закрытой карточки (M1-14), отдельной кнопкой в панели: карточка неактивна.
+ * Ряд (ПК) — под своей карточкой, на месте «Взять» (закрытую карточку не выбрать, «Взять» там не появится): ширина rowW,
+ * по центру карточки, сверху — top + cardH + takeGap. Стопка (телефон) — под стопкой, по центру поля, ширина stackW;
+ * «Взять» в стопке тогда ниже на h + gap.
+ */
+const UNLOCK = { rowW: 260, stackW: 360, h: 70, gap: 20 };
 
 /**
  * Окно выбора поверх холста: затемнение на весь экран, «Новый уровень!», карточки (ПК — в ряд, телефон — стопкой).
@@ -29,17 +37,22 @@ export class CardWindow {
   private readonly dim = document.createElement('div');
   private readonly panel = document.createElement('div');
   private win: OfferWindow | null = null;
+  /** Карточки, по которым нарисовано окно: открыли воронку — game.window.cards новый массив. */
+  private drawn: OfferCard[] | null = null;
   private layout: Layout | null = null;
   private selected: number | null = null;
   private openedAt = 0;
   private ready = false;
   private cards: HTMLButtonElement[] = [];
   private take: HTMLButtonElement | null = null;
+  private unlocks: HTMLButtonElement[] = [];
 
+  /** onUnlock — нажата «Открыть за рекламу»; реклама и открытие — в main.ts. */
   constructor(
     host: HTMLElement,
     private readonly game: Game,
     private readonly text: (key: string) => string,
+    private readonly onUnlock: () => void = () => {},
   ) {
     this.dim.className = 'cards-dim';
     this.dim.dataset.testid = 'cards';
@@ -54,12 +67,14 @@ export class CardWindow {
     if (w === null) {
       if (this.win !== null) {
         this.win = null;
+        this.drawn = null;
         this.dim.hidden = true;
       }
       return;
     }
-    if (w !== this.win) {
+    if (w !== this.win || w.cards !== this.drawn) {
       this.win = w;
+      this.drawn = w.cards;
       this.selected = null;
       this.openedAt = nowMs;
       this.ready = false;
@@ -115,6 +130,24 @@ export class CardWindow {
     });
     this.panel.append(...this.cards);
 
+    this.unlocks = [];
+    w.cards.forEach((offer, i) => {
+      if (offer.reason !== AD_LOCKED) return;
+      const btn = document.createElement('button');
+      btn.className = 'card-unlock';
+      btn.dataset.testid = 'card-unlock';
+      btn.textContent = this.text('ui.ad_unlock');
+      const width = row ? UNLOCK.rowW : UNLOCK.stackW;
+      const left = row ? parseFloat(this.cards[i]!.style.left) + (b.cardW - width) / 2 : (d.w - width) / 2;
+      const top = row ? b.top + b.cardH + b.takeGap : b.top + n * b.cardH + (n - 1) * b.gap + b.takeGap;
+      Object.assign(btn.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${UNLOCK.h}px` });
+      btn.addEventListener('click', () => {
+        if (this.ready) this.onUnlock();
+      });
+      this.unlocks.push(btn);
+    });
+    this.panel.append(...this.unlocks);
+
     const take = document.createElement('button');
     take.className = 'cards-take';
     take.dataset.testid = 'take';
@@ -148,13 +181,15 @@ export class CardWindow {
     const card = this.cards[this.selected]!;
     const left = this.layout === 'landscape' ? parseFloat(card.style.left) + (b.cardW - b.takeW) / 2 : (DESIGN.portrait.w - b.takeW) / 2;
     const n = this.cards.length;
-    const top = this.layout === 'landscape' ? b.top + b.cardH + b.takeGap : b.top + n * b.cardH + (n - 1) * b.gap + b.takeGap;
+    const below = this.unlocks.length > 0 ? UNLOCK.h + UNLOCK.gap : 0;
+    const top = this.layout === 'landscape' ? b.top + b.cardH + b.takeGap : b.top + n * b.cardH + (n - 1) * b.gap + b.takeGap + below;
     Object.assign(take.style, { left: `${left}px`, top: `${top}px`, width: `${b.takeW}px`, height: `${b.takeH}px` });
   }
 
   private syncEnabled(): void {
     this.win?.cards.forEach((offer, i) => (this.cards[i]!.disabled = !this.ready || !offer.available));
     if (this.take) this.take.disabled = !this.ready;
+    for (const u of this.unlocks) u.disabled = !this.ready;
   }
 
   private el(tag: string, cls: string, text: string, pos?: { top: number }): HTMLElement {

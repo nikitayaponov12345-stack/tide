@@ -100,6 +100,8 @@ loc.lagoon,Лагуна,Lagoon
 loc.north,Северные воды,Northern Waters
 loc.reef,Риф,Reef
 loc.strait,Штормовой пролив,Storm Strait
+ui.ad_locked,Открывается за рекламу,Unlocks with an ad
+ui.ad_unlock,Открыть за рекламу,Watch an ad to unlock
 ui.boost_left,Буст {s} с,Boost {s} s
 ui.boost_offer,Буст {s} с за рекламу,{s} s boost for an ad
 ui.choose_card,Выбери улучшение,Choose an upgrade

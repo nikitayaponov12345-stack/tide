@@ -13,7 +13,7 @@ export interface SaveFile {
   version: number;
   /** Весь опыт за всё время. */
   rating: number;
-  /** Пройденные локации и открытая воронка — с M2. */
+  /** Пройденные локации — с M2; открытая за рекламу воронка — с M1-14. */
   campaign: { passed: string[]; whirlpoolUnlocked: boolean };
   run: RunSave | null;
   /** Повтор пройденной локации — с M2. */
@@ -25,7 +25,7 @@ export function makeSave(game: Game, locationId: string, seed: number): SaveFile
   return {
     version: SAVE_VERSION,
     rating: game.stats.xpGained,
-    campaign: { passed: [], whirlpoolUnlocked: false },
+    campaign: { passed: [], whirlpoolUnlocked: game.whirlpoolUnlocked },
     run: { locationId, seed, game: game.snapshot() },
     replay: null,
   };

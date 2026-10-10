@@ -341,6 +341,10 @@ for (const r of T.ads) {
   for (const c of ['first_after_s', 'cooldown_s', 'visible_s']) num(r, c, { min: 0, optional: true });
   if (r.kind === 'interstitial' && Number(r.cooldown_s) < 180) err(`${where(r)}: межстраничная не чаще раза в 3 минуты (cooldown_s ≥ 180)`);
 }
+// Воронка за рекламу (M1-14): флаг кампании один (campaign.whirlpoolUnlocked), поэтому ad_unlock = 1 — только у воронки.
+for (const r of T.buildings) if (r.ad_unlock === '1' && r.id !== 'whirlpool') err(`${where(r)}: ad_unlock = 1 — только у воронки`);
+const whirlpoolUnlock = T.ads.find((r) => r.place === 'whirlpool_unlock');
+if (!whirlpoolUnlock || whirlpoolUnlock.kind !== 'rewarded') err('data/ads.csv: нет места whirlpool_unlock вида rewarded — воронки за рекламу');
 const boostOffer = T.ads.find((r) => r.place === 'boost_offer');
 if (!boostOffer) err('data/ads.csv: нет места boost_offer — кнопки буста за рекламу');
 else for (const c of ['first_after_s', 'cooldown_s', 'visible_s']) if (!(Number(boostOffer[c]) > 0)) err(`${where(boostOffer)}: у boost_offer ${c} должен быть больше 0`);

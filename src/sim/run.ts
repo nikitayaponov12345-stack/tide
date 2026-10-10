@@ -68,11 +68,10 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     if (i >= maxIters) throw new Error(`runSim: сид ${seed} — предел шагов`);
     if (game.paused) {
       const isWindow = game.window !== null;
-      const isAd = game.ad;
-      const { ms, card } = bot.pause();
+      const { ms, card, rewarded } = bot.pause();
       wallMs += ms;
-      // Реклама за награду тоже считается в перерыв межстраничной (ads.csv, window_close).
-      if (isAd) lastAdMs = wallMs;
+      // Реклама за награду (буст, с M1-14 и воронка) тоже считается в перерыв межстраничной (ads.csv, window_close).
+      if (rewarded) lastAdMs = wallMs;
       if (card !== null) cards[card] = (cards[card] ?? 0) + 1;
       if (isWindow) {
         windows++;
