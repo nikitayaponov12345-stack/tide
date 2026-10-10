@@ -48,6 +48,8 @@ export interface GameDebug {
       towerThrows: number; towerCaught: number;
       /** Броски копейных башен и броски, задевшие цель. */
       towerSpearThrows: number; towerSpearHits: number;
+      /** Предметов, которые втянули воронки. */
+      whirlpoolCaught: number;
       /** Шхуна: выстрелы, снятая ядрами прочность клеток, урон по ней и выпавшие сундуки. */
       bossShots: number; bossCellDamage: number; bossDamage: number; bossChests: number;
       /** Опыт потока, пойманного под бустом (× сила локации). */
@@ -81,6 +83,8 @@ export interface GameDebug {
     towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
     /** Копейные башни: урон удара; у каждой — клетка, копьё (у башни или в полёте) и остаток отдыха. */
     spearTowers: { damage: number; list: Array<{ gx: number; gy: number; state: SpearTowerState; x: number; y: number; restMs: number }> };
+    /** Воронки: радиус втягивания (у всех один) и клетки воронок. */
+    whirlpools: { radius: number; list: Array<{ gx: number; gy: number }> };
     /** Событие локации: id (нет у локации — null), идёт ли, сколько осталось, спокойное время, сколько было. */
     event: { id: string | null; active: boolean; leftMs: number; calmMs: number; count: number };
     /**

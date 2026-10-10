@@ -12,6 +12,7 @@ import type { SpearSnapshot } from './spear';
 import type { SpearTowersSnapshot } from './spear-towers';
 import type { StatsSnapshot } from './stats';
 import type { TowersSnapshot } from './towers';
+import type { WhirlpoolsSnapshot } from './whirlpools';
 import type { WorldSnapshot } from './world';
 
 /** Снимок партии (ARCHITECTURE §7): снимки модулей и поля игры. Только данные — JSON возвращает его без потерь. */
@@ -32,6 +33,8 @@ export interface GameSnapshot {
   boost?: BoostSnapshot;
   /** Нет в записи до M1-12: предложения с начала, первое — через first_after_s игры после загрузки. */
   boostOffer?: BoostOfferSnapshot;
+  /** Нет в записи до M1-13: радиус яруса; воронки встают по постройкам плота. */
+  whirlpools?: WhirlpoolsSnapshot;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -46,6 +49,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
     spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(), boostOffer: g.boostOffer.snapshot(),
+    whirlpools: g.whirlpools.snapshot(),
   };
 }
 
@@ -69,6 +73,7 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   g.mediumCaught = s.mediumCaught;
   if (s.towers) g.towers.restore(s.towers);
   if (s.spearTowers) g.spearTowers.restore(s.spearTowers);
+  if (s.whirlpools) g.whirlpools.restore(s.whirlpools);
   g.syncBuildings();
   if (s.events) g.events.restore(s.events);
   if (s.boss) g.boss.restore(s.boss);

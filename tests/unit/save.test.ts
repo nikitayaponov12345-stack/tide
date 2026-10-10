@@ -170,6 +170,19 @@ describe('Снимок партии', () => {
     expect(g.stats.towerSpearHits).toBeGreaterThan(0);
   });
 
+  it('воронка шире тянет предметы (M1-13): продолжение с записи идёт так же, как без перерыва', () => {
+    const g = new Game(DATA, CFG);
+    expect(g.debugBuild(0, 0, 'whirlpool')).toBe(true);
+    g.whirlpools.radius *= 1.2;
+    for (let i = 0; i < 120; i++) tact(g);
+    const snap = viaJson(g.snapshot());
+    expect(snap.whirlpools!.radius).toBe(g.whirlpools.radius);
+    for (let i = 0; i < 3000; i++) tact(g);
+    const r = load(snap);
+    for (let i = 0; i < 3000; i++) tact(r);
+    expect(viaJson(r.snapshot())).toEqual(viaJson(g.snapshot()));
+  });
+
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {
     const g = new Game(DATA, CFG);
     g.debugLevelUp();

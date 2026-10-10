@@ -24,7 +24,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.19';
+const VERSION = '0.0.20';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -217,6 +217,7 @@ async function boot(): Promise<void> {
         damage: game.spearTowers.damage,
         list: game.spearTowers.list.map(({ gx, gy, state, x, y, restMs }) => ({ gx, gy, state, x, y, restMs })),
       },
+      whirlpools: { radius: game.whirlpools.radius, list: game.whirlpools.list.map(({ gx, gy }) => ({ gx, gy })) },
       event: { id: game.events.id, active: game.events.active, leftMs: game.events.leftMs, calmMs: game.events.calmMs, count: game.events.count },
       boss: {
         id: game.boss.id, visiting: game.boss.visiting, side: game.boss.side, x: game.boss.x, y: game.boss.y,

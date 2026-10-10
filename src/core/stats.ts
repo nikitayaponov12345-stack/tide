@@ -22,6 +22,7 @@ export class Stats {
   repairTaps = 0;    // нажатия в ремонте, прибавившие прочность
   towerThrows = 0;   // броски сетевых башен
   towerCaught = 0;   // предметов вернули сети башен
+  whirlpoolCaught = 0; // предметов втянули воронки
   towerSpearThrows = 0; // броски копейных башен
   towerSpearHits = 0;   // броски копейных башен, задевшие хотя бы одну цель
   bossShots = 0;     // выстрелы шхуны (ядра)

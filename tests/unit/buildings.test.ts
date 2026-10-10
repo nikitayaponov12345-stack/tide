@@ -72,7 +72,7 @@ describe('Сетевая башня: окно', () => {
     expect(ids(g)).toContain(TOWER);
   });
 
-  it('в Лагуне из построек предлагаются только сетевая и копейная башни', () => {
+  it('в Лагуне из построек предлагаются только сетевая и копейная башни и воронка: остальные из других локаций', () => {
     const ctx = { freeCells: 3, canAddCell: true, spearOwned: true, has: () => true, bossVisitSeen: true };
     const seen = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
@@ -84,7 +84,7 @@ describe('Сетевая башня: окно', () => {
         }
       }
     }
-    expect([...seen].sort()).toEqual(['net_tower', 'spear_tower']);
+    expect([...seen].sort()).toEqual(['net_tower', 'spear_tower', 'whirlpool']);
   });
 });
 

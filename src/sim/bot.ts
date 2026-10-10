@@ -48,7 +48,7 @@ export const HUMAN: BotParams = {
 };
 
 /** Порядок карточек в окне: «Плот» и постройки первыми, как у живого игрока на записях. */
-export const CARD_ORDER: readonly string[] = ['raft', 'net_tower', 'spear_tower', 'net_tower_faster', 'spear_tower_stronger', 'throw_farther', 'net_bigger', 'net_wider', 'pull_stronger', 'spear_stronger'];
+export const CARD_ORDER: readonly string[] = ['raft', 'net_tower', 'spear_tower', 'whirlpool', 'net_tower_faster', 'spear_tower_stronger', 'whirlpool_wider', 'throw_farther', 'net_bigger', 'net_wider', 'pull_stronger', 'spear_stronger'];
 
 /** Цель сети: запас к дальности, отступ от края поля, радиус «кучки», вес расстояния в счёте, шум счёта, доля упреждения. */
 const TARGET_RANGE_SLACK = 10;

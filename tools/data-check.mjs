@@ -245,6 +245,11 @@ for (const r of T.buildings.filter((x) => x.id === 'spear_tower')) {
   num(r, 'damage', { min: 1 });
   num(r, 'shots', { min: 1, int: true });
 }
+// Воронка (M1-13)
+for (const r of T.buildings.filter((x) => x.id === 'whirlpool')) {
+  num(r, 'radius', { min: 1 });
+  num(r, 'pull_speed', { min: 1 });
+}
 for (const r of T.locations) for (const b of r.new_buildings.split('|').filter(Boolean)) {
   if (!buildingIds.has(b)) err(`${where(r)}: new_buildings — постройки «${b}» нет`);
   else if (T.buildings.find((x) => x.id === b).intro_location !== r.id) err(`${where(r)}: «${b}» вводится не в этой локации`);

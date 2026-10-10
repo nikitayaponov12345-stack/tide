@@ -3,6 +3,7 @@ import type { Net, NetParams } from './net';
 import type { Spear } from './spear';
 import { SPEAR_TOWER, type SpearTowers } from './spear-towers';
 import { NET_TOWER, type Towers } from './towers';
+import { WHIRLPOOL, type Whirlpools } from './whirlpools';
 
 /** Показатель карточки моряка → поле параметров сети. */
 const NET_STATS: Record<string, keyof NetParams> = { net_radius: 'radius', net_capacity: 'capacity', throw_range: 'range', pull: 'pull' };
@@ -35,9 +36,9 @@ export function sailorUpgrade(card: CardRow, net: Net, spear: Spear): () => void
 /**
  * Улучшение постройки. Расчёт сейчас, изменение — в возвращённой функции. В игре — «Сетевая башня быстрее»
  * (отдых всех сетевых башен; сеть, которая уже отдыхает, доотдыхает прежний срок) и «Копейная башня сильнее»
- * (урон всех копейных башен). Прочие → throw.
+ * (урон всех копейных башен) и «Воронка шире» (радиус всех воронок). Прочие → throw.
  */
-export function buildingUpgrade(card: CardRow, towers: Towers, spearTowers: SpearTowers): () => void {
+export function buildingUpgrade(card: CardRow, towers: Towers, spearTowers: SpearTowers, whirlpools: Whirlpools): () => void {
   if (card.target === NET_TOWER && card.stat === 'pause_s') {
     const pauseMs = changer(card)(towers.pauseMs);
     return () => (towers.pauseMs = pauseMs);
@@ -45,6 +46,10 @@ export function buildingUpgrade(card: CardRow, towers: Towers, spearTowers: Spea
   if (card.target === SPEAR_TOWER && card.stat === 'damage') {
     const damage = changer(card)(spearTowers.damage);
     return () => (spearTowers.damage = damage);
+  }
+  if (card.target === WHIRLPOOL && card.stat === 'radius') {
+    const radius = changer(card)(whirlpools.radius);
+    return () => (whirlpools.radius = radius);
   }
   throw new Error(`takeCard: улучшение ${card.id} (${card.target}, ${card.stat ?? '—'}) ещё не в игре`);
 }

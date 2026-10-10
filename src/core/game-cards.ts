@@ -4,8 +4,8 @@ import type { Game } from './game';
 import type { Spot } from './raft';
 import { buildingUpgrade, sailorUpgrade } from './upgrades';
 
-/** Постройки, которые уже можно ставить (id из buildings.csv). */
-export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower', 'spear_tower'];
+/** Постройки, которые уже можно ставить (id из buildings.csv); воронка — с M1-13. */
+export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower', 'spear_tower', 'whirlpool'];
 
 /** Взять карточку i окна (в порядке показа). Окна нет, индекса нет, карточка недоступна, открыта пауза → false. */
 export function takeCard(g: Game, i: number): boolean {
@@ -17,7 +17,7 @@ export function takeCard(g: Game, i: number): boolean {
   // Сначала проверки и расчёт: ошибка оставляет окно открытым, а карточку — невзятой.
   let apply: (() => void) | null = null;
   if (card.kind === 'sailor_upgrade') apply = sailorUpgrade(card, g.net, g.spear);
-  else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, g.towers, g.spearTowers);
+  else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, g.towers, g.spearTowers, g.whirlpools);
   else if (card.kind === 'building' && !BUILDINGS_IN_GAME.includes(card.target)) throw new Error(`takeCard: постройка ${card.target} ещё не в игре`);
   g.deck.take(card.id, w.level);
   g.window = null;

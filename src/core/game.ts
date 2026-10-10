@@ -17,6 +17,7 @@ import { Spear, type SpearTargets } from './spear';
 import { SpearTowers } from './spear-towers';
 import { Stats } from './stats';
 import { Towers } from './towers';
+import { Whirlpools } from './whirlpools';
 import { World } from './world';
 
 /** rewarded — у площадки есть реклама за награду (нет поля — есть). */
@@ -42,6 +43,7 @@ export class Game {
   readonly enemies: Enemies;
   readonly towers: Towers;
   readonly spearTowers: SpearTowers;
+  readonly whirlpools: Whirlpools;
   readonly events: LocationEvents;
   readonly boss: BossVisits;
   readonly boost: Boost;
@@ -101,6 +103,7 @@ export class Game {
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
     this.towers = new Towers(data, cfg.locationId, new Rng(cfg.seed + 4), this.stats);
     this.spearTowers = new SpearTowers(data, cfg.locationId, this.stats);
+    this.whirlpools = new Whirlpools(data, cfg.locationId);
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
     this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
@@ -178,11 +181,12 @@ export class Game {
       this.stats.itemsCaught += caught.length;
       if (caught.length === 0) this.stats.emptyThrows++;
     }
-    const towerCaught = this.towers.step(dtMs, this.world, this.raft);
-    if (towerCaught.length > 0) {
-      this.addCatch(towerCaught);
-      this.stats.towerCaught += towerCaught.length;
-    }
+    // Улов башен и воронок — опыт и значки, как улов сети моряка (без счётчиков бросков моряка).
+    const fromTowers = this.towers.step(dtMs, this.world, this.raft);
+    const fromWhirlpools = this.whirlpools.step(dtMs, this.world, this.raft);
+    this.stats.towerCaught += fromTowers.length;
+    this.stats.whirlpoolCaught += fromWhirlpools.length;
+    if (fromTowers.length + fromWhirlpools.length > 0) this.addCatch([...fromTowers, ...fromWhirlpools]);
     if (this.spear.step(dtMs, this.spearTargets).length > 0) this.stats.spearHits++;
     this.spearTowers.step(dtMs, this.enemies, this.boss, this.spearTargets, this.raft);
     this.enemies.step(dtMs, this.enemiesContext());
@@ -291,10 +295,11 @@ export class Game {
     return placeCell(this, gx, gy);
   }
 
-  /** Башни по постройкам плота: новые постройки получают свои башни. */
+  /** Башни и воронки — по постройкам плота: новые постройки получают свои башни и воронки. */
   syncBuildings(): void {
     this.towers.sync(this.raft);
     this.spearTowers.sync(this.raft);
+    this.whirlpools.sync(this.raft);
   }
 
   /** Отладка: постройка id из BUILDINGS_IN_GAME на целую свободную клетку (gx, gy) без карточки, и на паузе. Нельзя → false. */

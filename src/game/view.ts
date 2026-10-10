@@ -23,7 +23,9 @@ const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
 /** Постройка — круг цвета карточки постройки, радиус в долях клетки; на разбитой клетке — бледная. */
 const BUILDING = { color: 0x2a9d8f, radius: 0.4, stroke: { width: 2, color: 0xffffff }, brokenAlpha: 0.35 } as const;
 /** Цвет постройки по id, если он не BUILDING.color. */
-const BUILDING_COLOR: Readonly<Record<string, number>> = { spear_tower: 0xbc4749 };
+const BUILDING_COLOR: Readonly<Record<string, number>> = { spear_tower: 0xbc4749, whirlpool: 0x48cae4 };
+/** Радиус воронки — тонкое кольцо её цвета (M1-13). */
+const WHIRLPOOL_RING = { width: 1.5, color: 0x48cae4, alpha: 0.45 } as const;
 /** Обводка повреждённых клеток в ремонте. */
 const REPAIR_STROKE = { width: 3, color: 0xffd166 } as const;
 /** Места для новой клетки в стройке — бледные. */
@@ -114,6 +116,10 @@ export class View {
         .circle(c.gx * cell, c.gy * cell, BUILDING.radius * cell)
         .fill({ color: BUILDING_COLOR[c.building] ?? BUILDING.color, alpha })
         .stroke({ ...BUILDING.stroke, alpha });
+    }
+    for (const w of game.whirlpools.list) {
+      const c = raft.cell(w.gx, w.gy);
+      if (c && isIntact(c)) this.raft.circle(w.gx * cell, w.gy * cell, game.whirlpools.radius).stroke(WHIRLPOOL_RING);
     }
     this.ghost.clear();
     if (game.build) {

@@ -133,7 +133,7 @@ describe('SpearTowers', () => {
 
   it('«Копейная башня сильнее» через buildingUpgrade — урон damage + value', () => {
     const g = new Game(DATA, CFG);
-    buildingUpgrade(STRONGER, g.towers, g.spearTowers)();
+    buildingUpgrade(STRONGER, g.towers, g.spearTowers, g.whirlpools)();
     expect(g.spearTowers.damage).toBe(DAMAGE + STRONGER.value!);
   });
 });
@@ -159,22 +159,23 @@ describe('Копейная башня: колода', () => {
       const w5 = g.deck.offer(5, ctxOf(0, true));
       expect(w5.find((c) => c.id === VISIT_CARD), `сид ${seed}`).toMatchObject({ available: false });
       expect(visitShown(g)).toBe(false);
-      const w6 = g.deck.offer(6, ctxOf(1, true));
-      expect(w6.find((c) => c.id === VISIT_CARD), `сид ${seed}`).toMatchObject({ available: true });
+      // У 6-го уровня своя принудительная — воронка (M1-13): следующее окно копейной — 7-го.
+      const w7 = g.deck.offer(7, ctxOf(1, true));
+      expect(w7.find((c) => c.id === VISIT_CARD), `сид ${seed}`).toMatchObject({ available: true });
       expect(visitShown(g)).toBe(true);
     }
   });
 
-  it('в Game: после визита окно 6-го уровня — с копейной', () => {
+  it('в Game: после визита окно 7-го уровня — с копейной (у 6-го своя принудительная — воронка)', () => {
     const g = new Game(DATA, CFG);
     expect(g.raft.add(1, 0)).toBe(true);
-    g.setLevel(5);
+    g.setLevel(6);
     g.debugBossVisit();
     for (let i = 0; i < MAX_STEPS && g.boss.visiting; i++) g.step(STEP_MS);
     expect(g.boss.visits).toBe(1);
     expect(g.window).toBeNull();
     g.debugLevelUp();
-    expect(g.window?.level).toBe(6);
+    expect(g.window?.level).toBe(7);
     expect(g.window!.cards.find((c) => c.id === VISIT_CARD)).toMatchObject({ available: true });
     expect(visitShown(g)).toBe(true);
   });

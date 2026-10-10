@@ -271,7 +271,7 @@ describe('Game: окно выбора и стройка', () => {
     // У «Копьё сильнее» с M0-08 есть механика: берём копию таблицы с выдуманным показателем.
     const data: Tables = { ...DATA, cards: DATA.cards.map((c) => (c.id === 'net_wider' ? { ...c, stat: 'made_up' } : c)) };
     const g = new Game(data, CFG);
-    for (const id of ['net_wider', 'whirlpool']) {
+    for (const id of ['net_wider', 'crane']) {
       const w = { level: 5, cards: [{ id, available: true, reason: null }] };
       g.window = w;
       expect(() => g.takeCard(0)).toThrow();
