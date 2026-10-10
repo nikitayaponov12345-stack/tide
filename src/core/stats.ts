@@ -3,7 +3,7 @@ import { ROLES, type Role } from './data/tables';
 /** Снимок счётчиков: все числовые поля Stats и xpByRole. */
 export type StatsSnapshot = { [K in keyof Stats as Stats[K] extends number ? K : never]: number } & { xpByRole: Record<Role, number> };
 
-/** Счётчики для бота и отладки. Пишут Game, Enemies, Towers и BossVisits. */
+/** Счётчики для бота и отладки. Пишут Game, Enemies, Towers, SpearTowers и BossVisits. */
 export class Stats {
   throws = 0;        // успешные throwTo
   emptyThrows = 0;   // сеть вернулась пустой
@@ -22,6 +22,8 @@ export class Stats {
   repairTaps = 0;    // нажатия в ремонте, прибавившие прочность
   towerThrows = 0;   // броски сетевых башен
   towerCaught = 0;   // предметов вернули сети башен
+  towerSpearThrows = 0; // броски копейных башен
+  towerSpearHits = 0;   // броски копейных башен, задевшие хотя бы одну цель
   bossShots = 0;     // выстрелы шхуны (ядра)
   bossCellDamage = 0; // прочности клеток снято ядрами
   bossDamage = 0;    // урон по шхуне на визитах

@@ -153,6 +153,20 @@ describe('Снимок партии', () => {
     expect(r.towers.pauseMs).toBe(g.towers.pauseMs);
   });
 
+  it('копьё копейной башни в полёте (M1-09): продолжение с записи идёт так же, как без перерыва', () => {
+    const g = new Game(DATA, CFG);
+    expect(g.debugBuild(0, 0, 'spear_tower')).toBe(true);
+    g.debugSpawnEnemy(150, 0);
+    stepWhile(g, () => g.spearTowers.list[0]!.state !== 'flying');
+    const snap = viaJson(g.snapshot());
+    expect(snap.spearTowers!.list[0]!.state).toBe('flying');
+    for (let i = 0; i < 3000; i++) tact(g);
+    const r = load(snap);
+    for (let i = 0; i < 3000; i++) tact(r);
+    expect(viaJson(r.snapshot())).toEqual(viaJson(g.snapshot()));
+    expect(g.stats.towerSpearHits).toBeGreaterThan(0);
+  });
+
   it('очередь окон: после загрузки за окном 2-го уровня и клеткой открывается окно 3-го', () => {
     const g = new Game(DATA, CFG);
     g.debugLevelUp();

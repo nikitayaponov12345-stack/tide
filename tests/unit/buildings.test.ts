@@ -72,17 +72,19 @@ describe('Сетевая башня: окно', () => {
     expect(ids(g)).toContain(TOWER);
   });
 
-  it('в Лагуне из построек предлагается только net_tower', () => {
+  it('в Лагуне из построек предлагаются только сетевая и копейная башни', () => {
     const ctx = { freeCells: 3, canAddCell: true, spearOwned: true, has: () => true, bossVisitSeen: true };
+    const seen = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
       const g = new Game(DATA, { ...CFG, seed });
       for (let level = 4; level <= 30; level++) {
         for (const c of g.deck.offer(level, ctx)) {
           const row = g.deck.card(c.id);
-          if (row.kind === 'building' || row.kind === 'building_upgrade') expect(row.target, `сид ${seed}, уровень ${level}`).toBe(TOWER);
+          if (row.kind === 'building' || row.kind === 'building_upgrade') seen.add(row.target);
         }
       }
     }
+    expect([...seen].sort()).toEqual(['net_tower', 'spear_tower']);
   });
 });
 

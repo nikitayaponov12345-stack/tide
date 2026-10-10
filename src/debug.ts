@@ -4,6 +4,7 @@ import type { EnemyPhase } from './core/enemies';
 import type { Weapon } from './core/game';
 import type { NetState } from './core/net';
 import type { SpearState } from './core/spear';
+import type { SpearTowerState } from './core/spear-towers';
 import type { TowerNetState } from './core/towers';
 import type { Layout } from './game/layout';
 import type { PlatformCall } from './platform/platform';
@@ -45,6 +46,8 @@ export interface GameDebug {
       repairTaps: number;
       /** Броски сетевых башен и предметы, которые вернули их сети. */
       towerThrows: number; towerCaught: number;
+      /** Броски копейных башен и броски, задевшие цель. */
+      towerSpearThrows: number; towerSpearHits: number;
       /** Шхуна: выстрелы, снятая ядрами прочность клеток, урон по ней и выпавшие сундуки. */
       bossShots: number; bossCellDamage: number; bossDamage: number; bossChests: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
@@ -72,6 +75,8 @@ export interface GameDebug {
     enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase }>;
     /** Сетевые башни: клетка и сети, caught — сколько предметов в сети. */
     towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
+    /** Копейные башни: урон удара; у каждой — клетка, копьё (у башни или в полёте) и остаток отдыха. */
+    spearTowers: { damage: number; list: Array<{ gx: number; gy: number; state: SpearTowerState; x: number; y: number; restMs: number }> };
     /** Событие локации: id (нет у локации — null), идёт ли, сколько осталось, спокойное время, сколько было. */
     event: { id: string | null; active: boolean; leftMs: number; calmMs: number; count: number };
     /**
@@ -109,6 +114,8 @@ export interface GameDebug {
   debugBossVisit(side?: BossSide): void;
   /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
   debugDamageCell(gx: number, gy: number, amount: number): number;
+  /** Постройка id на целую свободную клетку без карточки (и на паузе); нельзя — false. */
+  debugBuild(gx: number, gy: number, id: string): boolean;
   /** Центр клетки плота в координатах окна (CSS-пиксели). */
   cellToScreen(gx: number, gy: number): { x: number; y: number };
   /** Предметы в воде, координаты мира. */

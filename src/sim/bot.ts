@@ -3,6 +3,7 @@ import type { Tables } from '../core/data/tables';
 import type { Game } from '../core/game';
 import { isIntact } from '../core/raft';
 import type { Rng } from '../core/rng';
+import { nearestTarget } from '../core/spear-towers';
 import type { Item } from '../core/world';
 
 /** Промежуток [a, b): значение — rng.range(a, b). */
@@ -36,7 +37,7 @@ export const HUMAN: BotParams = {
 };
 
 /** Порядок карточек в окне: «Плот» и постройки первыми, как у живого игрока на записях. */
-export const CARD_ORDER: readonly string[] = ['raft', 'net_tower', 'net_tower_faster', 'throw_farther', 'net_bigger', 'net_wider', 'pull_stronger', 'spear_stronger'];
+export const CARD_ORDER: readonly string[] = ['raft', 'net_tower', 'spear_tower', 'net_tower_faster', 'spear_tower_stronger', 'throw_farther', 'net_bigger', 'net_wider', 'pull_stronger', 'spear_stronger'];
 
 /** Цель сети: запас к дальности, отступ от края поля, радиус «кучки», вес расстояния в счёте, шум счёта, доля упреждения. */
 const TARGET_RANGE_SLACK = 10;
@@ -169,19 +170,7 @@ export class HumanBot {
   private spearTarget(): { x: number; y: number } | null {
     const g = this.game;
     if (!g.spearOwned) return null;
-    const { x: sx, y: sy } = g.sailor;
-    const points = g.enemies.list.map((e) => ({ x: e.x, y: e.y }));
-    if (g.boss.visiting) points.push(g.boss.nearestPoint(sx, sy));
-    let best: { x: number; y: number } | null = null;
-    let bestD = Infinity;
-    for (const e of points) {
-      const d = Math.hypot(e.x - sx, e.y - sy);
-      if (d <= g.spear.range && d < bestD) {
-        bestD = d;
-        best = e;
-      }
-    }
-    return best;
+    return nearestTarget(g.enemies, g.boss, g.sailor.x, g.sailor.y, g.spear.range);
   }
 
   /** Шаг на соседнюю целую клетку, с которой до корпуса шхуны ближе всего и ближе, чем с нынешней. Такой нет — false. */

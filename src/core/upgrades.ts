@@ -1,6 +1,7 @@
 import type { CardRow } from './data/tables';
 import type { Net, NetParams } from './net';
 import type { Spear } from './spear';
+import { SPEAR_TOWER, type SpearTowers } from './spear-towers';
 import { NET_TOWER, type Towers } from './towers';
 
 /** Показатель карточки моряка → поле параметров сети. */
@@ -32,13 +33,18 @@ export function sailorUpgrade(card: CardRow, net: Net, spear: Spear): () => void
 }
 
 /**
- * Улучшение постройки. Расчёт сейчас, изменение — в возвращённой функции. В игре — «Сетевая башня быстрее»:
- * отдых всех сетевых башен; сеть, которая уже отдыхает, доотдыхает прежний срок. Прочие → throw.
+ * Улучшение постройки. Расчёт сейчас, изменение — в возвращённой функции. В игре — «Сетевая башня быстрее»
+ * (отдых всех сетевых башен; сеть, которая уже отдыхает, доотдыхает прежний срок) и «Копейная башня сильнее»
+ * (урон всех копейных башен). Прочие → throw.
  */
-export function buildingUpgrade(card: CardRow, towers: Towers): () => void {
+export function buildingUpgrade(card: CardRow, towers: Towers, spearTowers: SpearTowers): () => void {
   if (card.target === NET_TOWER && card.stat === 'pause_s') {
     const pauseMs = changer(card)(towers.pauseMs);
     return () => (towers.pauseMs = pauseMs);
+  }
+  if (card.target === SPEAR_TOWER && card.stat === 'damage') {
+    const damage = changer(card)(spearTowers.damage);
+    return () => (spearTowers.damage = damage);
   }
   throw new Error(`takeCard: улучшение ${card.id} (${card.target}, ${card.stat ?? '—'}) ещё не в игре`);
 }

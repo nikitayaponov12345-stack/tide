@@ -11,6 +11,7 @@ import { Raft, type Spot } from './raft';
 import { Rng } from './rng';
 import { Sailor } from './sailor';
 import { Spear, type SpearTargets } from './spear';
+import { SpearTowers } from './spear-towers';
 import { Stats } from './stats';
 import { Towers } from './towers';
 import { buildingUpgrade, sailorUpgrade } from './upgrades';
@@ -26,7 +27,7 @@ export type { GameSnapshot } from './game-snapshot';
 /** Виды карточек в игре. */
 const KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
 /** Постройки, которые уже можно ставить (id из buildings.csv). */
-export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower'];
+export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower', 'spear_tower'];
 /** Роль предмета, улов которой (вместе со второй клеткой) приводит первого врага: в Лагуне — бочонок. */
 const FIRST_ENEMY_ROLE = 'medium';
 
@@ -39,6 +40,7 @@ export class Game {
   readonly spear: Spear;
   readonly enemies: Enemies;
   readonly towers: Towers;
+  readonly spearTowers: SpearTowers;
   readonly events: LocationEvents;
   readonly boss: BossVisits;
   readonly progression: Progression;
@@ -71,7 +73,7 @@ export class Game {
   private readonly repairPerTap: number;
   /** Удержание пальца: сеть тянется, только если выбран слот сети. */
   private hold = false;
-  /** Цели копья моряка: враги и шхуна на визите. */
+  /** Цели копья моряка и копейных башен: враги и шхуна на визите. */
   private readonly spearTargets: SpearTargets = {
     hit: (x, y, reach, damage) => [...this.enemies.hit(x, y, reach, damage), ...this.boss.hit(x, y, reach, damage)],
   };
@@ -93,6 +95,7 @@ export class Game {
     this.weaponKey = tier.weaponKey;
     this.enemies = new Enemies(data, cfg.locationId, new Rng(cfg.seed + 2), this.world, this.stats);
     this.towers = new Towers(data, cfg.locationId, new Rng(cfg.seed + 4), this.stats);
+    this.spearTowers = new SpearTowers(data, cfg.locationId, this.stats);
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
     this.xpMult = loc.xpMult;
@@ -170,6 +173,7 @@ export class Game {
       this.stats.towerCaught += towerCaught.length;
     }
     if (this.spear.step(dtMs, this.spearTargets).length > 0) this.stats.spearHits++;
+    this.spearTowers.step(dtMs, this.enemies, this.boss, this.spearTargets, this.raft);
     this.enemies.step(dtMs, this.enemiesContext());
     if (this.enemies.spawned > 0) this.spearOwned = true;
     this.stats.xpGained += this.progression.step(this.world.timeMs);
@@ -248,7 +252,7 @@ export class Game {
     // Сначала проверки и расчёт: ошибка оставляет окно открытым, а карточку — невзятой.
     let apply: (() => void) | null = null;
     if (card.kind === 'sailor_upgrade') apply = sailorUpgrade(card, this.net, this.spear);
-    else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, this.towers);
+    else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, this.towers, this.spearTowers);
     else if (card.kind === 'building' && !BUILDINGS_IN_GAME.includes(card.target)) throw new Error(`takeCard: постройка ${card.target} ещё не в игре`);
     this.deck.take(card.id, w.level);
     this.window = null;
@@ -282,11 +286,25 @@ export class Game {
     if (card.kind === 'raft') this.raft.add(gx, gy);
     else {
       this.raft.build(gx, gy, card.target);
-      this.towers.sync(this.raft);
+      this.syncBuildings();
     }
     if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
     this.build = null;
     this.openNext();
+    return true;
+  }
+
+  /** Башни по постройкам плота: новые постройки получают свои башни. */
+  syncBuildings(): void {
+    this.towers.sync(this.raft);
+    this.spearTowers.sync(this.raft);
+  }
+
+  /** Отладка: постройка id из BUILDINGS_IN_GAME на целую свободную клетку (gx, gy) без карточки, и на паузе. Нельзя → false. */
+  debugBuild(gx: number, gy: number, id: string): boolean {
+    if (!BUILDINGS_IN_GAME.includes(id) || !this.raft.canBuild(gx, gy)) return false;
+    this.raft.build(gx, gy, id);
+    this.syncBuildings();
     return true;
   }
 
@@ -369,7 +387,7 @@ export class Game {
       canAddCell: this.raft.candidates().length > 0,
       has: (b) => this.raft.hasBuilding(b),
       spearOwned: this.spearOwned,
-      bossVisitSeen: false,
+      bossVisitSeen: this.boss.visits > 0,
     };
   }
 }

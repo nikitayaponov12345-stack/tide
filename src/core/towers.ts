@@ -16,12 +16,22 @@ export interface Tower { gx: number; gy: number; nets: TowerNet[] }
 export interface TowersSnapshot { list: Tower[]; pauseMs: number; rng: number }
 
 /** Число из ячейки общей таблицы buildings.csv; пусто или не число → throw. */
-function cellNum(row: GenericRow, key: string): number {
+export function cellNum(row: GenericRow, key: string): number {
   const v = Number(row[key]);
   if (row[key] === undefined || row[key] === '' || !Number.isFinite(v)) {
     throw new Error(`buildings.csv: ${row.id} ярус ${row.tier}: ${key} «${row[key] ?? ''}» — не число`);
   }
   return v;
+}
+
+/** Строка buildings.csv постройки id в локации: ярус = порядок локации − порядок intro_location + 1. Нет → throw. */
+export function tierRow(data: Tables, id: string, locationId: string): GenericRow {
+  const rows = data.buildings.filter((r) => r.id === id);
+  if (rows.length === 0) throw new Error(`buildings.csv: нет постройки ${id}`);
+  const tier = data.location(locationId).order - data.location(rows[0]!.intro_location!).order + 1;
+  const row = rows.find((r) => Number(r.tier) === tier);
+  if (!row) throw new Error(`buildings.csv: нет яруса ${tier} постройки ${id} (локация ${locationId})`);
+  return row;
 }
 
 /**
@@ -48,11 +58,7 @@ export class Towers {
     private readonly rng: Rng,
     private readonly stats: Stats,
   ) {
-    const rows = data.buildings.filter((r) => r.id === NET_TOWER);
-    if (rows.length === 0) throw new Error(`buildings.csv: нет постройки ${NET_TOWER}`);
-    const tier = data.location(locationId).order - data.location(rows[0]!.intro_location!).order + 1;
-    const row = rows.find((r) => Number(r.tier) === tier);
-    if (!row) throw new Error(`buildings.csv: нет яруса ${tier} постройки ${NET_TOWER} (локация ${locationId})`);
+    const row = tierRow(data, NET_TOWER, locationId);
     this.radius = cellNum(row, 'radius');
     this.pauseMs = cellNum(row, 'pause_s') * 1000;
     this.nets = cellNum(row, 'nets');

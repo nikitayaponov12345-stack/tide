@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.15';
+const VERSION = '0.0.16';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -207,6 +207,10 @@ async function boot(): Promise<void> {
       towers: game.towers.list.map((t) => ({
         gx: t.gx, gy: t.gy, nets: t.nets.map((n) => ({ state: n.state, x: n.x, y: n.y, caught: n.caught.length })),
       })),
+      spearTowers: {
+        damage: game.spearTowers.damage,
+        list: game.spearTowers.list.map(({ gx, gy, state, x, y, restMs }) => ({ gx, gy, state, x, y, restMs })),
+      },
       event: { id: game.events.id, active: game.events.active, leftMs: game.events.leftMs, calmMs: game.events.calmMs, count: game.events.count },
       boss: {
         id: game.boss.id, visiting: game.boss.visiting, side: game.boss.side, x: game.boss.x, y: game.boss.y,
@@ -229,6 +233,7 @@ async function boot(): Promise<void> {
     debugEvent: () => game.debugEvent(),
     debugBossVisit: (side) => game.debugBossVisit(side),
     debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),
+    debugBuild: (gx, gy, id) => game.debugBuild(gx, gy, id),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),
     items: () => world.items.map(({ id, kind, role, x, y, radius }) => ({ id, kind, role, x, y, radius })),
     toScreen: (x, y) => worldToScreen(x, y, window.innerWidth, window.innerHeight, stage.layout),

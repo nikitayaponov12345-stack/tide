@@ -13,17 +13,21 @@ export interface DeckContext {
   bossVisitSeen: boolean;           // был визит босса (M1)
 }
 
-export interface DeckSnapshot { takes: Array<[string, { count: number; lastLevel: number }]>; rng: number }
+/** visitShown нет в записи до M1-09 — false. */
+export interface DeckSnapshot { takes: Array<[string, { count: number; lastLevel: number }]>; rng: number; visitShown?: boolean }
 
 export const NEED_FREE_CELL = 'ui.need_free_cell';
 
 /**
  * Колода локации: что предлагать в окне выбора и сколько раз что взято.
- * Окно — выбор по весам card_weight_<kind> без возвращения, принудительная карточка уровня,
+ * Окно — выбор по весам card_weight_<kind> без возвращения, принудительная карточка уровня, а без неё —
+ * карточка «после визита», пока её не показали доступной (M1-09),
  * «Плот» при нехватке свободных клеток (решение 09.10), доступные — первыми.
  */
 export class Deck {
   private readonly takes = new Map<string, { count: number; lastLevel: number }>();
+  /** Карточка «после визита» уже была в окне доступной. */
+  private visitShown = false;
 
   constructor(
     private readonly data: Tables,
@@ -59,13 +63,14 @@ export class Deck {
   }
 
   snapshot(): DeckSnapshot {
-    return { takes: [...this.takes].map(([id, t]) => [id, { ...t }]), rng: this.rng.getState() };
+    return { takes: [...this.takes].map(([id, t]) => [id, { ...t }]), rng: this.rng.getState(), visitShown: this.visitShown };
   }
 
   restore(s: DeckSnapshot): void {
     this.takes.clear();
     for (const [id, t] of s.takes) this.takes.set(id, { count: t.count, lastLevel: t.lastLevel });
     this.rng.setState(s.rng);
+    this.visitShown = s.visitShown ?? false;
   }
 
   /** Окно уровня level; [] — доступной карточки нет, окно не открывается. */
@@ -85,8 +90,12 @@ export class Deck {
     }
 
     const forcedRow = this.data.forcedCards.find((f) => f.location === this.locationId && f.trigger === `level:${level}`);
-    const forced = forcedRow ? this.card(forcedRow.card) : null;
-    const forcedId = forced && this.canOffer(forced, level, ctx) ? forced.id : null;
+    let forced = forcedRow ? this.card(forcedRow.card) : null;
+    if (forced && !this.canOffer(forced, level, ctx)) forced = null;
+    // Нет своей принудительной у уровня — после визита босса принудительна карточка «после визита», пока её не показали доступной.
+    const visit = this.visitCard();
+    if (!forced && visit && ctx.bossVisitSeen && !this.visitShown && this.canOffer(visit, level, ctx)) forced = visit;
+    const forcedId = forced ? forced.id : null;
     if (forcedId !== null && !picks.some((c) => c.id === forcedId) && picks.length > 0) {
       picks[picks.length - 1] = forced!;
     }
@@ -105,7 +114,16 @@ export class Deck {
 
     const cards = picks.map((c) => this.availability(c, ctx));
     const sorted = [...cards.filter((c) => c.available), ...cards.filter((c) => !c.available)];
-    return sorted.some((c) => c.available) ? sorted : [];
+    if (!sorted.some((c) => c.available)) return [];
+    // В счёт — только окно, где карточка «после визита» стоит принудительной и доступна; случайная и затемнённая — нет.
+    if (visit && forcedId === visit.id && sorted.some((c) => c.id === visit.id && c.available)) this.visitShown = true;
+    return sorted;
+  }
+
+  /** Карточка строки after:boss_visit этой локации; нет — null. */
+  private visitCard(): CardRow | null {
+    const row = this.data.forcedCards.find((f) => f.location === this.locationId && f.trigger === 'after:boss_visit');
+    return row ? this.card(row.card) : null;
   }
 
   private weight(c: CardRow): number {

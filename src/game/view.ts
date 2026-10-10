@@ -22,6 +22,8 @@ const RAFT_COLOR = [0xc58b4f, 0xa8743f, 0x8b5e32, 0x6e4a27, 0x8a8a8a] as const;
 const GHOST_COLOR = { ok: 0x7bd88f, bad: 0xff6b6b };
 /** Постройка — круг цвета карточки постройки, радиус в долях клетки; на разбитой клетке — бледная. */
 const BUILDING = { color: 0x2a9d8f, radius: 0.4, stroke: { width: 2, color: 0xffffff }, brokenAlpha: 0.35 } as const;
+/** Цвет постройки по id, если он не BUILDING.color. */
+const BUILDING_COLOR: Readonly<Record<string, number>> = { spear_tower: 0xbc4749 };
 /** Обводка повреждённых клеток в ремонте. */
 const REPAIR_STROKE = { width: 3, color: 0xffd166 } as const;
 /** Места для новой клетки в стройке — бледные. */
@@ -37,6 +39,8 @@ const SHIP = { hull: 0x4a2c17, hullRound: 24, deck: 0x7a4a2a, deckInset: 10, dec
 const BALL = { color: 0x1a1a1a, radius: 7, stroke: { width: 1, color: 0xffffff } } as const;
 /** Сеть башни: верёвка от клетки башни и круг сети. */
 const TOWER_NET = { rope: { width: 1.5, color: 0x9fe3d6, alpha: 0.8 }, ring: { width: 2, color: 0x9fe3d6 } } as const;
+/** Копьё копейной башни: черта от клетки башни и наконечник. */
+const TOWER_SPEAR = { line: { width: 1, color: SPEAR_COLOR, alpha: 0.5 }, tip: { width: 3, color: 0xffffff }, tipLength: 14 } as const;
 /** Длина наконечника копья, точки дизайна. */
 const SPEAR_TIP = 18;
 const LABEL_STYLE = { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWeight: '700', stroke: { color: 0x000000, width: 3 } } as const;
@@ -108,7 +112,7 @@ export class View {
       const alpha = isIntact(c) ? 1 : BUILDING.brokenAlpha;
       this.raft
         .circle(c.gx * cell, c.gy * cell, BUILDING.radius * cell)
-        .fill({ color: BUILDING.color, alpha })
+        .fill({ color: BUILDING_COLOR[c.building] ?? BUILDING.color, alpha })
         .stroke({ ...BUILDING.stroke, alpha });
     }
     this.ghost.clear();
@@ -137,6 +141,17 @@ export class View {
       this.spear
         .moveTo(sailor.x, sailor.y).lineTo(sp.x, sp.y).stroke({ width: 1, color: SPEAR_COLOR, alpha: 0.6 })
         .moveTo(sp.x - (dx / len) * SPEAR_TIP, sp.y - (dy / len) * SPEAR_TIP).lineTo(sp.x, sp.y).stroke({ width: 4, color: 0xffffff });
+    }
+    for (const t of game.spearTowers.list) {
+      if (t.state !== 'flying') continue;
+      const home = raft.cellCenter(t);
+      const dx = t.x - home.x;
+      const dy = t.y - home.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const tip = TOWER_SPEAR.tipLength;
+      this.spear
+        .moveTo(home.x, home.y).lineTo(t.x, t.y).stroke(TOWER_SPEAR.line)
+        .moveTo(t.x - (dx / len) * tip, t.y - (dy / len) * tip).lineTo(t.x, t.y).stroke(TOWER_SPEAR.tip);
     }
 
     this.net.clear();

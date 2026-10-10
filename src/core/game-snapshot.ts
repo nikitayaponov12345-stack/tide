@@ -7,6 +7,7 @@ import type { NetSnapshot } from './net';
 import type { ProgressionSnapshot } from './progression';
 import type { Cell } from './raft';
 import type { SpearSnapshot } from './spear';
+import type { SpearTowersSnapshot } from './spear-towers';
 import type { StatsSnapshot } from './stats';
 import type { TowersSnapshot } from './towers';
 import type { WorldSnapshot } from './world';
@@ -23,6 +24,8 @@ export interface GameSnapshot {
   events?: EventsSnapshot;
   /** Нет в записи до M1-08: визитов ещё не было. */
   boss?: BossSnapshot;
+  /** Нет в записи до M1-09: копейные башни встают по постройкам плота с копьём у башни, без отдыха. */
+  spearTowers?: SpearTowersSnapshot;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -36,6 +39,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     build: g.build && { ...g.build },
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
+    spearTowers: g.spearTowers.snapshot(),
   };
 }
 
@@ -58,7 +62,8 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   g.secondCellMs = s.secondCellMs;
   g.mediumCaught = s.mediumCaught;
   if (s.towers) g.towers.restore(s.towers);
-  g.towers.sync(g.raft);
+  if (s.spearTowers) g.spearTowers.restore(s.spearTowers);
+  g.syncBuildings();
   if (s.events) g.events.restore(s.events);
   if (s.boss) g.boss.restore(s.boss);
 }
