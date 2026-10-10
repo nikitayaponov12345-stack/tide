@@ -1,4 +1,5 @@
 import type { BossSnapshot } from './boss';
+import type { BoostSnapshot } from './boost';
 import type { DeckSnapshot } from './deck';
 import type { EnemiesSnapshot } from './enemies';
 import type { EventsSnapshot } from './events';
@@ -26,6 +27,8 @@ export interface GameSnapshot {
   boss?: BossSnapshot;
   /** Нет в записи до M1-09: копейные башни встают по постройкам плота с копьём у башни, без отдыха. */
   spearTowers?: SpearTowersSnapshot;
+  /** Нет в записи до M1-11: буста нет, бутылку не ловили. */
+  boost?: BoostSnapshot;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -39,7 +42,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     build: g.build && { ...g.build },
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
-    spearTowers: g.spearTowers.snapshot(),
+    spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(),
   };
 }
 
@@ -66,4 +69,5 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   g.syncBuildings();
   if (s.events) g.events.restore(s.events);
   if (s.boss) g.boss.restore(s.boss);
+  if (s.boost) g.boost.restore(s.boost);
 }

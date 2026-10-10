@@ -15,7 +15,7 @@ export function xpBarRect(width: number, height: number, layout: Layout): { left
 }
 
 /**
- * Полоса опыта у верхнего края поля дизайна по центру: «Уровень N» и заполнение xp / xpToNext.
+ * Полоса опыта у верхнего края поля дизайна по центру: «Уровень N» (под бустом — «Уровень N · Буст S с») и заполнение xp / xpToNext.
  * Только читает ядро; новый уровень показывает окно выбора.
  */
 export class Hud {
@@ -39,7 +39,9 @@ export class Hud {
     Object.assign(this.bar.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
 
     this.fill.style.width = `${Math.min(100, (p.xp / p.xpToNext()) * 100)}%`;
-    const text = `${this.text('ui.level')} ${p.level}`;
+    let text = `${this.text('ui.level')} ${p.level}`;
+    const boost = game.boost;
+    if (boost.active) text += ` · ${this.text('ui.boost_left').replace('{s}', String(Math.ceil(boost.leftMs / 1000)))}`;
     if (text !== this.lastText) this.label.textContent = this.lastText = text;
   }
 }

@@ -15,9 +15,9 @@ export interface Enemy {
 export interface EnemyHit { x: number; y: number; dealt: number }
 /**
  * Что враги видят у игры на шаге; ready — условие первого врага выполнено; buildings — число построек (нет — 0);
- * rateMult — во сколько раз чаще враги в событие локации (нет — 1).
+ * rateMult — во сколько раз чаще враги в событие локации (нет — 1); blocked — идёт буст: новые враги не приходят.
  */
-export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number; rateMult?: number }
+export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number; rateMult?: number; blocked?: boolean }
 
 export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
 
@@ -87,10 +87,12 @@ export class Enemies {
     this.rng.setState(s.rng);
   }
 
-  /** Шаг: движение врагов → таймер появления; в шаг, когда условие стало выполнено, — первый враг. */
+  /** Шаг: движение врагов → таймер появления; в шаг, когда условие стало выполнено, — первый враг. Под бустом таймер стоит. */
   step(dtMs: number, ctx: EnemiesContext): void {
     if (this.speed === null) return;
     for (const e of [...this.list]) this.advance(e, dtMs, ctx.raft);
+    // Буст: новых нет, накопитель не растёт, первый враг тоже ждёт. Те, что на поле, остаются.
+    if (ctx.blocked) return;
     if (this.started) {
       // Враг, появившийся внутри шага, проходит остаток шага. Интервал стал короче накопленного — враг сразу, но один:
       // накопитель не больше нынешнего интервала. Долгий шаг по-прежнему даёт столько врагов, сколько положено.

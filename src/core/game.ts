@@ -1,9 +1,11 @@
 import { BossVisits, type BossSide } from './boss';
+import { BOTTLE_ROLE, Boost } from './boost';
 import { TIME_EPS } from './clock';
-import type { CardKind, CardRow, Tables } from './data/tables';
-import { Deck, type DeckContext, type OfferCard } from './deck';
+import { FLOW_ROLES, type CardKind, type Tables } from './data/tables';
+import { Deck, type OfferCard } from './deck';
 import { Enemies, type EnemiesContext } from './enemies';
 import { LocationEvents } from './events';
+import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, openNext, placeCell, takeCard } from './game-cards';
 import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
 import { Net, type CaughtItem } from './net';
 import { Progression } from './progression';
@@ -14,7 +16,6 @@ import { Spear, type SpearTargets } from './spear';
 import { SpearTowers } from './spear-towers';
 import { Stats } from './stats';
 import { Towers } from './towers';
-import { buildingUpgrade, sailorUpgrade } from './upgrades';
 import { World } from './world';
 
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number }
@@ -26,12 +27,10 @@ export type { GameSnapshot } from './game-snapshot';
 
 /** Виды карточек в игре. */
 const KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
-/** Постройки, которые уже можно ставить (id из buildings.csv). */
-export const BUILDINGS_IN_GAME: readonly string[] = ['net_tower', 'spear_tower'];
 /** Роль предмета, улов которой (вместе со второй клеткой) приводит первого врага: в Лагуне — бочонок. */
 const FIRST_ENEMY_ROLE = 'medium';
 
-/** Ядро целиком: мир, плот, моряк, его сеть и копьё, враги, прогрессия, окно выбора, стройка, счётчики и команды ввода. */
+/** Ядро целиком: мир, плот, моряк, его сеть и копьё, враги, буст, прогрессия, окно выбора, стройка (game-cards.ts), счётчики и команды ввода. */
 export class Game {
   readonly world: World;
   readonly raft: Raft;
@@ -43,6 +42,7 @@ export class Game {
   readonly spearTowers: SpearTowers;
   readonly events: LocationEvents;
   readonly boss: BossVisits;
+  readonly boost: Boost;
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
@@ -66,8 +66,8 @@ export class Game {
   secondCellMs: number | null = null;
   /** Сеть хоть раз вернула предмет роли FIRST_ENEMY_ROLE. */
   mediumCaught = false;
-  /** Уровни, чьи окна ещё не показаны. */
-  private readonly pending: number[] = [];
+  /** Уровни, чьи окна ещё не показаны. Открыто для game-cards.ts и снимка; снаружи не трогать. */
+  readonly pending: number[] = [];
   private readonly walkHintDelayMs: number;
   private readonly walkHintMaxLevel: number;
   private readonly repairPerTap: number;
@@ -98,6 +98,7 @@ export class Game {
     this.spearTowers = new SpearTowers(data, cfg.locationId, this.stats);
     this.events = new LocationEvents(data, cfg.locationId);
     this.boss = new BossVisits(data, cfg.locationId, new Rng(cfg.seed + 5), this.world, this.stats);
+    this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
     // Постройки колоды: новинки этой локации и прошлых, из тех, что уже в игре.
@@ -156,10 +157,12 @@ export class Game {
   step(dtMs: number): void {
     if (this.paused) return;
     this.stats.gameMs += dtMs;
-    // Множители события действуют уже в этом шаге. Спокойное время события стоит в визит, визита — в событие.
-    this.events.step(dtMs, !this.boss.visiting);
-    this.boss.step(dtMs, !this.events.active, this.events.count, this.raft);
-    this.world.flowMult = this.events.flowMult;
+    // Событие, визит и буст — первыми: их множители действуют уже в этом шаге.
+    // Спокойное время события копится без визита и буста, визита — без события и буста.
+    this.events.step(dtMs, !this.boss.visiting && !this.boost.active);
+    this.boss.step(dtMs, !this.events.active && !this.boost.active, this.events.count, this.raft);
+    this.boost.step(dtMs, this.stats.enemiesKilled, this.bottleInNet());
+    this.world.flowMult = this.events.flowMult * (this.boost.active ? this.boost.flowMult : 1);
     this.world.step(dtMs);
     const caught = this.net.step(dtMs, this.world);
     if (caught) {
@@ -177,8 +180,8 @@ export class Game {
     this.enemies.step(dtMs, this.enemiesContext());
     if (this.enemies.spawned > 0) this.spearOwned = true;
     this.stats.xpGained += this.progression.step(this.world.timeMs);
-    this.collectLevelUps();
-    this.openNext();
+    collectLevelUps(this);
+    openNext(this);
   }
 
   /** Выбранное оружие можно бросить: не пауза и оно у моряка. */
@@ -244,54 +247,22 @@ export class Game {
 
   /** Взять карточку i окна (в порядке показа). Окна нет, индекса нет, карточка недоступна, открыта пауза → false. */
   takeCard(i: number): boolean {
-    if (this.menu) return false;
-    const w = this.window;
-    const offer = w?.cards[i];
-    if (!w || !offer || !offer.available) return false;
-    const card = this.deck.card(offer.id);
-    // Сначала проверки и расчёт: ошибка оставляет окно открытым, а карточку — невзятой.
-    let apply: (() => void) | null = null;
-    if (card.kind === 'sailor_upgrade') apply = sailorUpgrade(card, this.net, this.spear);
-    else if (card.kind === 'building_upgrade') apply = buildingUpgrade(card, this.towers, this.spearTowers);
-    else if (card.kind === 'building' && !BUILDINGS_IN_GAME.includes(card.target)) throw new Error(`takeCard: постройка ${card.target} ещё не в игре`);
-    this.deck.take(card.id, w.level);
-    this.window = null;
-    if (apply) {
-      apply();
-      this.openNext();
-    } else {
-      this.build = { card: card.id };
-    }
-    return true;
+    return takeCard(this, i);
   }
 
   /** Место (gx, gy) подходит стройке: у «Плота» — новая клетка, у постройки — свободная целая. Стройки нет → false. Паузу не смотрит. */
   canPlace(gx: number, gy: number): boolean {
-    const card = this.buildCard();
-    if (!card) return false;
-    return card.kind === 'raft' ? this.raft.canAdd(gx, gy) : this.raft.canBuild(gx, gy);
+    return canPlace(this, gx, gy);
   }
 
   /** Места стройки: у «Плота» — raft.candidates(), у постройки — raft.buildSpots(). Стройки нет → []. */
   buildSpots(): Spot[] {
-    const card = this.buildCard();
-    if (!card) return [];
-    return card.kind === 'raft' ? this.raft.candidates() : this.raft.buildSpots();
+    return buildSpots(this);
   }
 
   /** Стройка на (gx, gy): у «Плота» — клетка, у постройки — постройка target. Стройки нет, место не подходит или открыта пауза → false. */
   placeCell(gx: number, gy: number): boolean {
-    const card = this.buildCard();
-    if (this.menu || !card || !this.canPlace(gx, gy)) return false;
-    if (card.kind === 'raft') this.raft.add(gx, gy);
-    else {
-      this.raft.build(gx, gy, card.target);
-      this.syncBuildings();
-    }
-    if (this.secondCellMs === null && this.raft.cells.length >= 2) this.secondCellMs = this.world.timeMs;
-    this.build = null;
-    this.openNext();
-    return true;
+    return placeCell(this, gx, gy);
   }
 
   /** Башни по постройкам плота: новые постройки получают свои башни. */
@@ -315,8 +286,8 @@ export class Game {
     p.addXp(p.xpToNext() - p.xp);
     // xp + (step − xp) может не дотянуть до step на долю ulp — тогда добираем чуть с запасом.
     if (p.level === level) p.addXp((p.xpToNext() - p.xp) * (1 + 1e-9));
-    this.collectLevelUps();
-    this.openNext();
+    collectLevelUps(this);
+    openNext(this);
   }
 
   /**
@@ -338,6 +309,11 @@ export class Game {
     this.boss.start(this.raft, side);
   }
 
+  /** Отладка: буст на ms (нет — как от бутылки); идёт — время прибавляется. Работает и на паузе. */
+  debugBoost(ms?: number): void {
+    this.boost.start(ms ?? this.boost.bottleMs);
+  }
+
   /** Отладка: урон клетке сейчас (центральная неуязвима), и на паузе; ответ — сколько снято. Не укус: в bites и cellDamage не идёт. */
   debugDamageCell(gx: number, gy: number, amount: number): number {
     return this.raft.damage(gx, gy, amount);
@@ -349,45 +325,32 @@ export class Game {
     this.world.setLevel(level);
   }
 
-  /** Улов сети или башен: значки, опыт по ролям, бочонок для первого врага. */
+  /**
+   * Улов сети или башен: значки, опыт по ролям, бочонок для первого врага. Под бустом опыт потока идёт ещё и в boostFlowXp.
+   * Вернулась бутылка — буст.
+   */
   private addCatch(caught: CaughtItem[]): void {
     this.progression.addCatch(caught, this.world.timeMs);
-    for (const it of caught) this.stats.xpByRole[it.role] += it.xp * this.xpMult;
+    const boosted = this.boost.active;
+    for (const it of caught) {
+      const xp = it.xp * this.xpMult;
+      this.stats.xpByRole[it.role] += xp;
+      if (boosted && FLOW_ROLES.includes(it.role)) this.stats.boostFlowXp += xp;
+    }
     if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
+    if (caught.some((it) => it.role === BOTTLE_ROLE)) this.boost.bottleBack();
   }
 
-  private buildCard(): CardRow | null {
-    return this.build && this.deck.card(this.build.card);
+  /** Бутылка в сети моряка или в сети какой-нибудь сетевой башни: поймана, но ещё не вернулась. */
+  private bottleInNet(): boolean {
+    const isBottle = (it: CaughtItem): boolean => it.role === BOTTLE_ROLE;
+    return this.net.caught.some(isBottle) || this.towers.list.some((t) => t.nets.some((n) => n.caught.some(isBottle)));
   }
 
   private enemiesContext(): EnemiesContext {
     return {
       raft: this.raft, level: this.progression.level, ready: this.raft.cells.length >= 2 && this.mediumCaught,
-      buildings: this.raft.buildingCount(), rateMult: this.events.enemyRateMult,
-    };
-  }
-
-  private collectLevelUps(): void {
-    this.pending.push(...this.progression.takeLevelUps());
-    if (this.world.level !== this.progression.level) this.world.setLevel(this.progression.level);
-  }
-
-  /** Следующее окно из очереди; уровень без доступной карточки — без окна. */
-  private openNext(): void {
-    while (!this.paused && this.pending.length > 0) {
-      const level = this.pending.shift()!;
-      const cards = this.deck.offer(level, this.deckContext());
-      if (cards.length > 0) this.window = { level, cards };
-    }
-  }
-
-  private deckContext(): DeckContext {
-    return {
-      freeCells: this.raft.freeCells(),
-      canAddCell: this.raft.candidates().length > 0,
-      has: (b) => this.raft.hasBuilding(b),
-      spearOwned: this.spearOwned,
-      bossVisitSeen: this.boss.visits > 0,
+      buildings: this.raft.buildingCount(), rateMult: this.events.enemyRateMult, blocked: this.boost.active,
     };
   }
 }

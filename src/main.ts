@@ -23,7 +23,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.17';
+const VERSION = '0.0.18';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -217,6 +217,10 @@ async function boot(): Promise<void> {
         hx: game.boss.hx, hy: game.boss.hy, damage: game.boss.damage, chests: game.boss.chests, visits: game.boss.visits,
         calmMs: game.boss.calmMs, nextMs: game.boss.nextMs, balls: game.boss.balls.map((b) => ({ ...b })),
       },
+      boost: {
+        active: game.boost.active, leftMs: game.boost.leftMs, bottleCaught: game.boost.bottleCaught,
+        bottle: ((it) => (it ? { x: it.x, y: it.y } : null))(world.items.find((i) => i.id === game.boost.bottleId)),
+      },
     }),
     command: {
       throwTo: (x, y) => game.throwTo(x, y),
@@ -232,6 +236,7 @@ async function boot(): Promise<void> {
     debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
     debugEvent: () => game.debugEvent(),
     debugBossVisit: (side) => game.debugBossVisit(side),
+    debugBoost: (ms) => game.debugBoost(ms),
     debugDamageCell: (gx, gy, amount) => game.debugDamageCell(gx, gy, amount),
     debugBuild: (gx, gy, id) => game.debugBuild(gx, gy, id),
     cellToScreen: (gx, gy) => worldToScreen(gx * cellPx, gy * cellPx, window.innerWidth, window.innerHeight, stage.layout),

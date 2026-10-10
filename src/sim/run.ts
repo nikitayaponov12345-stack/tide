@@ -32,7 +32,7 @@ export interface SimResult {
   windows: number;
   /** id карточки → сколько раз взята. */
   cards: Record<string, number>;
-  /** Опыт вернувшегося улова по источникам; boost — 0 до M1. */
+  /** Опыт вернувшегося улова по источникам: flow — поток без буста, boost — поток под бустом (с M1-11). */
   xp: { flow: number; loot: number; chest: number; boost: number };
   /** Точки межстраничной рекламы: в M0 рекламы нет, бот только считает. */
   adPoints: number;
@@ -111,10 +111,10 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     windows,
     cards,
     xp: {
-      flow: FLOW_ROLES.reduce((sum, r) => sum + s.xpByRole[r], 0),
+      flow: FLOW_ROLES.reduce((sum, r) => sum + s.xpByRole[r], 0) - s.boostFlowXp,
       loot: s.xpByRole.loot,
       chest: s.xpByRole.boss_chest,
-      boost: 0,
+      boost: s.boostFlowXp,
     },
     adPoints,
   };

@@ -50,6 +50,8 @@ export interface GameDebug {
       towerSpearThrows: number; towerSpearHits: number;
       /** Шхуна: выстрелы, снятая ядрами прочность клеток, урон по ней и выпавшие сундуки. */
       bossShots: number; bossCellDamage: number; bossDamage: number; bossChests: number;
+      /** Опыт потока, пойманного под бустом (× сила локации). */
+      boostFlowXp: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -87,6 +89,8 @@ export interface GameDebug {
       id: string | null; visiting: boolean; side: BossSide; x: number; y: number; hx: number; hy: number;
       damage: number; chests: number; visits: number; calmMs: number; nextMs: number; balls: BossBall[];
     };
+    /** Буст: идёт ли, сколько осталось, поймана ли бутылка, бутылка в воде (координаты мира; нет — null). */
+    boost: { active: boolean; leftMs: number; bottleCaught: boolean; bottle: null | { x: number; y: number } };
   };
   /** Команды ядра — те же, что подаёт слой ввода. */
   command: {
@@ -112,6 +116,8 @@ export interface GameDebug {
   debugEvent(): void;
   /** Визит босса сейчас вдоль стороны side (нет — случайной), и на паузе; идёт визит — ничего. */
   debugBossVisit(side?: BossSide): void;
+  /** Буст на ms (нет — как от бутылки), и на паузе; идёт — время прибавляется. */
+  debugBoost(ms?: number): void;
   /** Урон клетке сейчас (и на паузе), центральная неуязвима; ответ — сколько снято. Не укус: счётчики укусов не меняет. */
   debugDamageCell(gx: number, gy: number, amount: number): number;
   /** Постройка id на целую свободную клетку без карточки (и на паузе); нельзя — false. */

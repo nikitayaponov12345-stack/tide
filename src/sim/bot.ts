@@ -1,3 +1,4 @@
+import { BOTTLE_ROLE } from '../core/boost';
 import { TIME_EPS } from '../core/clock';
 import type { Tables } from '../core/data/tables';
 import type { Game } from '../core/game';
@@ -22,6 +23,7 @@ export interface BotParams {
   crabNoticeMs: Span;   // заметить краба в круге дальности
   spearSigma: number;   // промах копья, σ по оси
   retryMs: number;      // цели нет — следующая попытка через столько
+  bottleValue: number;  // бутылка в «кучке» стоит столько опыта: живой игрок ловит её сразу
 }
 
 /** Бот «человек»: GDD «Темп и баланс», TESTPLAN §5. */
@@ -34,6 +36,7 @@ export const HUMAN: BotParams = {
   crabNoticeMs: [500, 1000],
   spearSigma: 12,
   retryMs: 80,
+  bottleValue: 30,
 };
 
 /** Порядок карточек в окне: «Плот» и постройки первыми, как у живого игрока на записях. */
@@ -210,7 +213,9 @@ export class HumanBot {
       const dist = Math.hypot(it.x - sx, it.y - sy);
       if (dist > reach || Math.abs(it.x) > halfW - TARGET_EDGE || Math.abs(it.y) > halfH - TARGET_EDGE) continue;
       let value = 0;
-      for (const o of items) if (Math.hypot(o.x - it.x, o.y - it.y) < CLUSTER_PX) value += o.xp;
+      for (const o of items) {
+        if (Math.hypot(o.x - it.x, o.y - it.y) < CLUSTER_PX) value += o.role === BOTTLE_ROLE ? this.params.bottleValue : o.xp;
+      }
       const score = value - dist / DIST_PENALTY + this.rng.range(0, SCORE_NOISE);
       if (score > bestScore) {
         bestScore = score;
