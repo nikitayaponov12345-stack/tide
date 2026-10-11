@@ -3,13 +3,18 @@ import type { TutorialStep } from '../core/tutorial';
 import { worldToScreen, type Layout } from '../game/layout';
 
 /** Как рука показывает шаг: нажать или нажать и держать. */
-const GESTURE: Record<TutorialStep, 'tap' | 'hold'> = { throw: 'tap', pull: 'hold', card: 'tap', cell: 'tap' };
+const GESTURE: Record<TutorialStep, 'tap' | 'hold'> = {
+  throw: 'tap', pull: 'hold', card: 'tap', cell: 'tap',
+  spear_slot: 'tap', spear_aim: 'tap', repair: 'tap', repair_cell: 'tap', visit: 'tap',
+};
 
 /**
  * Рука обучения (M1-19): кружок с пульсом поверх всего, нажатия не перехватывает (заготовка до арта, M4). Шаг даёт
  * game.tutorial.step, место — здесь: бросок — ближайший к моряку предмет в круге дальности (нет — вода под моряком на
  * полдальности), тяга — сеть, карточка — первая доступная, а после выбора — «Взять», клетка — первое место стройки,
  * а на телефоне после выбора места — «Поставить». Кнопки ищет в host по data-testid.
+ * M1-20: слот копья; краб — ближайший к моряку в круге дальности копья; молоток; клетка ремонта — самая разбитая (из
+ * равных — первая); шхуна — середина корпуса.
  */
 export class TutorialHand {
   private readonly el = document.createElement('div');
@@ -29,7 +34,11 @@ export class TutorialHand {
     const step = this.game.tutorial.step(this.game);
     const at = step === null ? null : this.target(step, layout);
     this.el.hidden = at === null;
-    if (step === null || at === null) return;
+    if (step === null || at === null) {
+      // Скрытая рука без шага (M1-20): тесты и отладка видят, что шаг кончился
+      delete this.el.dataset.step;
+      return;
+    }
     if (this.el.dataset.step !== step) {
       this.el.dataset.step = step;
       this.el.className = `tutorial-hand ${GESTURE[step]}`;
@@ -66,6 +75,30 @@ export class TutorialHand {
         const c = g.raft.candidates()[0];
         return c ? screen(c.gx * this.cellPx, c.gy * this.cellPx) : null;
       }
+      case 'spear_slot':
+        return this.center('[data-testid="slot-spear"]');
+      case 'spear_aim': {
+        const s = g.sailor;
+        let best: { x: number; y: number } | null = null;
+        let bestD = g.spear.range;
+        for (const e of g.enemies.list) {
+          const d = Math.hypot(e.x - s.x, e.y - s.y);
+          if (d <= bestD) {
+            bestD = d;
+            best = e;
+          }
+        }
+        return best ? screen(best.x, best.y) : null;
+      }
+      case 'repair':
+        return this.center('[data-testid="repair-button"]');
+      case 'repair_cell': {
+        let worst = g.raft.cells[0]!;
+        for (const c of g.raft.cells) if (c.hp < worst.hp) worst = c;
+        return screen(worst.gx * this.cellPx, worst.gy * this.cellPx);
+      }
+      case 'visit':
+        return screen(g.boss.x, g.boss.y);
     }
   }
 

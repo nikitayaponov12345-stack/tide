@@ -28,7 +28,8 @@ test('укус клетки, разбитая клетка и неуязвима
   });
   expect(CELL_HP).toBeGreaterThan(0);
   expect(BITE).toBeGreaterThan(0);
-  await page.goto('/?new=1');
+  // Без обучения (M1-20): иначе мир стоит у первого краба, пока моряк не попадёт копьём
+  await page.goto('/?new=1&tutorial=0');
   await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
 
   // 1. Клетка (1, 0) и краб справа: центр от него дальше всех, но цель — (1, 0).

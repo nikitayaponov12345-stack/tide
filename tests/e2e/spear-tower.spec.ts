@@ -15,7 +15,8 @@ function watchErrors(page: Page): string[] {
 
 test('копейная башня бьёт краба', async ({ page }, info) => {
   const errors = watchErrors(page);
-  await page.goto('/?new=1');
+  // Без обучения (M1-20): иначе мир стоит у первого краба, пока моряк не попадёт копьём
+  await page.goto('/?new=1&tutorial=0');
   await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 20_000 });
 
   expect(await page.evaluate(() => window.__game!.debugBuild(0, 0, 'spear_tower'))).toBe(true);

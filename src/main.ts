@@ -26,7 +26,7 @@ import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 import { TutorialHand } from './ui/tutorial';
 
-const VERSION = '0.0.26';
+const VERSION = '0.0.27';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -63,8 +63,9 @@ async function boot(): Promise<void> {
     ...worldSize(stage.layout), locationId: LOCATION, seed: SEED, rewarded: platform.rewardedAvailable(),
     // запись кампании, а не партии
     whirlpoolUnlocked: parsed?.campaign?.whirlpoolUnlocked === true,
-    // Обучение (M1-19) — в новой партии первой локации; у продолженной — из записи
-    tutorial: DATA.location(LOCATION).order === 1,
+    // Обучение (M1-19) — в новой партии первой локации; у продолженной — из записи. ?tutorial=0 — без него (M1-20: тесты,
+    // где краб нужен без паузы первого краба)
+    tutorial: DATA.location(LOCATION).order === 1 && new URLSearchParams(location.search).get('tutorial') !== '0',
   };
   let restored: Game | null = null;
   const run = parsed?.run;

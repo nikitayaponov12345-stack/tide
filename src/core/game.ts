@@ -195,7 +195,8 @@ export class Game {
   }
 
   step(dtMs: number): void {
-    if (this.paused) return;
+    // Первый краб (M1-20): мир стоит, пока игрок не выберет копьё и не попадёт им; команды при этом работают.
+    if (this.paused || this.tutorial.holds(this)) return;
     this.stats.gameMs += dtMs;
     // Угрозы первыми: множители события и буста действуют уже в этом шаге (порядок — в game-threats.ts).
     stepThreats(this, dtMs);
