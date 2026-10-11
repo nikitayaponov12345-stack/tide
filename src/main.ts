@@ -25,7 +25,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.24';
+const VERSION = '0.0.25';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -115,17 +115,25 @@ async function boot(): Promise<void> {
   });
   // Затемнение паузы — поверх молотка (z-index); при окне выбора и в стройке молоток скрыт.
   const repair = new RepairButton(ui, game, text);
-  let unlocking = false;
-  const cards = new CardWindow(ui, game, text, () => {
-    if (unlocking) return;
-    unlocking = true;
+  // Реклама за награду из окна выбора — воронка (M1-14) или «Новые карточки» (M1-18): одна за раз.
+  let rewarding = false;
+  const reward = (give: () => boolean): void => {
+    if (rewarding) return;
+    rewarding = true;
     void control
       .rewarded(() => platform.showRewarded())
       .then((ok) => {
-        if (ok && game.unlockWhirlpool()) saver.save();
+        if (ok && give()) saver.save();
       })
-      .finally(() => (unlocking = false));
-  });
+      .finally(() => (rewarding = false));
+  };
+  const cards = new CardWindow(
+    ui,
+    game,
+    text,
+    () => reward(() => game.unlockWhirlpool()),
+    () => reward(() => game.refreshCards()),
+  );
   const cursor = new BuildCursor(cellPx);
   const place = new PlaceButton(ui, game, cursor, text);
   const control = new Control(game, platform);
@@ -242,7 +250,12 @@ async function boot(): Promise<void> {
       },
       stats: { ...stats, xpByRole: { ...stats.xpByRole } },
       sailor: { gx: sailor.gx, gy: sailor.gy, x: sailor.x, y: sailor.y },
-      window: game.window && { level: game.window.level, cards: game.window.cards.map((c) => ({ ...c })) },
+      window: game.window && {
+        level: game.window.level,
+        cards: game.window.cards.map((c) => ({ ...c })),
+        refreshed: game.window.refreshed === true,
+        canRefresh: game.canRefreshCards(),
+      },
       build: game.build && { card: game.build.card, candidates: game.buildSpots() },
       raft: raft.cells.map((c) => ({ ...c })),
       walkHint: game.walkHint,

@@ -86,6 +86,25 @@ export function unlockWhirlpool(g: Game): boolean {
   return true;
 }
 
+/**
+ * «Новые карточки» за рекламу (M1-18): можно, когда у площадки есть реклама за награду, открыто окно выбора и его ещё не
+ * обновляли, в локации взято не меньше refresh_after_cards карточек и среди новых карточек есть доступная.
+ */
+export function canRefreshCards(g: Game): boolean {
+  const w = g.window;
+  if (!g.rewarded || w === null || w.refreshed === true || g.deck.takenTotal() < g.deck.refreshAfter) return false;
+  return g.deck.canReroll(w.level, deckContext(g), w.cards.map((c) => c.id));
+}
+
+/** Реклама досмотрена: в окне — новые карточки (Deck.reroll), второй раз это окно не обновить. Нельзя → false. */
+export function refreshCards(g: Game): boolean {
+  if (!canRefreshCards(g)) return false;
+  const w = g.window!;
+  w.cards = g.deck.reroll(w.level, deckContext(g), w.cards.map((c) => c.id));
+  w.refreshed = true;
+  return true;
+}
+
 /** Отладка: опыт до следующего уровня сразу; окно открывается тут же. В stats.xpGained не входит. */
 export function debugLevelUp(g: Game): void {
   const p = g.progression;

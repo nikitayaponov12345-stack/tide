@@ -32,6 +32,8 @@ export class Deck {
   private visitShown = false;
   /** Постройки с ad_unlock = 1 в buildings.csv: открываются рекламой (M1-14). */
   private readonly adUnlock: ReadonlySet<string>;
+  /** «Новые карточки» за рекламу — когда в локации взято столько карточек (refresh_after_cards, M1-18). */
+  readonly refreshAfter: number;
 
   constructor(
     private readonly data: Tables,
@@ -41,6 +43,7 @@ export class Deck {
     /** Постройки, которые можно предлагать в локации; null — любые. */
     private readonly buildings: readonly string[] | null = null,
   ) {
+    this.refreshAfter = data.num('refresh_after_cards');
     this.adUnlock = new Set(data.buildings.filter((r) => Number(r.ad_unlock) === 1).map((r) => String(r.id)));
   }
 
@@ -68,6 +71,13 @@ export class Deck {
     return this.takes.get(id)?.count ?? 0;
   }
 
+  /** Сколько карточек взято в локации, всех вместе (M1-18). */
+  takenTotal(): number {
+    let n = 0;
+    for (const t of this.takes.values()) n += t.count;
+    return n;
+  }
+
   snapshot(): DeckSnapshot {
     return { takes: [...this.takes].map(([id, t]) => [id, { ...t }]), rng: this.rng.getState(), visitShown: this.visitShown };
   }
@@ -83,17 +93,7 @@ export class Deck {
   offer(level: number, ctx: DeckContext): OfferCard[] {
     const n = this.size(level);
     const pool = this.data.cards.filter((c) => this.canOffer(c, level, ctx));
-    const picks: CardRow[] = [];
-    while (picks.length < n && pool.length > 0) {
-      const total = pool.reduce((s, c) => s + this.weight(c), 0);
-      let r = this.rng.next() * total;
-      let i = 0;
-      for (; i < pool.length - 1; i++) {
-        r -= this.weight(pool[i]!);
-        if (r < 0) break;
-      }
-      picks.push(pool.splice(i, 1)[0]!);
-    }
+    const picks = this.pick(pool, n);
 
     const forcedRow = this.data.forcedCards.find((f) => f.location === this.locationId && f.trigger === `level:${level}`);
     let forced = forcedRow ? this.card(forcedRow.card) : null;
@@ -126,9 +126,53 @@ export class Deck {
     return sorted;
   }
 
+  /** До n карточек из pool по весам card_weight_<kind> без возвращения; выбранные уходят из pool. */
+  private pick(pool: CardRow[], n: number): CardRow[] {
+    const picks: CardRow[] = [];
+    while (picks.length < n && pool.length > 0) {
+      const total = pool.reduce((s, c) => s + this.weight(c), 0);
+      let r = this.rng.next() * total;
+      let i = 0;
+      for (; i < pool.length - 1; i++) {
+        r -= this.weight(pool[i]!);
+        if (r < 0) break;
+      }
+      picks.push(pool.splice(i, 1)[0]!);
+    }
+    return picks;
+  }
+
   /** Доступность тех же карточек заново, порядок прежний: для открытого окна (M1-14). */
   refresh(cards: readonly OfferCard[], ctx: DeckContext): OfferCard[] {
     return cards.map((c) => this.availability(this.card(c.id), ctx));
+  }
+
+  /**
+   * «Новые карточки» за рекламу (M1-18): окно того же уровня из карточек, которых в нём не было (old), по весам без
+   * возвращения. «Плот» при нехватке свободных клеток — как в offer, даже если он был. Принудительных нет: окно их уже
+   * показало. Ни одной доступной — последнюю заменяет доступная из оставшихся, по весам. Доступные — первыми.
+   * Новых доступных нет (canReroll — false) — [], Rng не тронут.
+   */
+  reroll(level: number, ctx: DeckContext, old: readonly string[]): OfferCard[] {
+    const pool = this.rerollPool(level, ctx, old);
+    const ok = (c: CardRow): boolean => this.availability(c, ctx).available;
+    if (!pool.some(ok)) return [];
+    const picks = this.pick(pool, this.size(level));
+    const raft = this.data.cards.find((c) => c.kind === 'raft');
+    if (ctx.freeCells === 0 && raft && this.canOffer(raft, level, ctx) && !picks.some((c) => c.id === raft.id)) picks[picks.length - 1] = raft;
+    if (!picks.some(ok)) picks[picks.length - 1] = this.pick(pool.filter(ok), 1)[0]!;
+    const cards = picks.map((c) => this.availability(c, ctx));
+    return [...cards.filter((c) => c.available), ...cards.filter((c) => !c.available)];
+  }
+
+  /** У окна с карточками old есть новые и среди них доступная (M1-18). */
+  canReroll(level: number, ctx: DeckContext, old: readonly string[]): boolean {
+    return this.rerollPool(level, ctx, old).some((c) => this.availability(c, ctx).available);
+  }
+
+  /** Карточки, которые можно предложить на уровне level и которых нет в old. */
+  private rerollPool(level: number, ctx: DeckContext, old: readonly string[]): CardRow[] {
+    return this.data.cards.filter((c) => !old.includes(c.id) && this.canOffer(c, level, ctx));
   }
 
   /** Карточка строки after:boss_visit этой локации; нет — null. */

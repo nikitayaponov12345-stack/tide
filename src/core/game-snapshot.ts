@@ -52,7 +52,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     world: g.world.snapshot(), raft: g.raft.snapshot(), sailor: g.sailor.snapshot(), net: g.net.snapshot(),
     spear: g.spear.snapshot(), enemies: g.enemies.snapshot(), progression: g.progression.snapshot(),
     deck: g.deck.snapshot(), stats: g.stats.snapshot(),
-    window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })) },
+    window: w && { level: w.level, cards: w.cards.map((c) => ({ ...c })), ...(w.refreshed ? { refreshed: true } : {}) },
     build: g.build && { ...g.build },
     weapon: g.weapon, spearOwned: g.spearOwned, hasWalked: g.hasWalked, secondCellMs: g.secondCellMs,
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
@@ -73,7 +73,9 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   g.progression.restore(s.progression);
   g.deck.restore(s.deck);
   g.stats.restore(s.stats);
-  g.window = s.window && { level: s.window.level, cards: s.window.cards.map((c) => ({ ...c })) };
+  g.window = s.window && {
+    level: s.window.level, cards: s.window.cards.map((c) => ({ ...c })), ...(s.window.refreshed ? { refreshed: true } : {}),
+  };
   g.build = s.build && { card: s.build.card };
   g.weapon = s.weapon;
   g.spearOwned = s.spearOwned;

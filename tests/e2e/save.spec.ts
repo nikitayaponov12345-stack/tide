@@ -106,7 +106,8 @@ test('открытое окно выбора переживает перезаг
   await expect(page.getByTestId('cards')).toBeVisible();
   const w = await page.evaluate(() => ({ resumed: window.__game!.resumed, window: window.__game!.state().window }));
   expect(w.resumed).toBe(true);
-  expect(w.window).toEqual({ level: 4, cards });
+  // M1-18: у окна в state() ещё refreshed и canRefresh; в начале партии окно не обновлялось и обновить его нельзя.
+  expect(w.window).toEqual({ level: 4, cards, refreshed: false, canRefresh: false });
   expect(log.errors).toEqual([]);
 });
 

@@ -27,6 +27,11 @@ const BOX: Record<Layout, {
  * «Взять» в стопке тогда ниже на h + gap.
  */
 const UNLOCK = { rowW: 260, stackW: 360, h: 70, gap: 20 };
+/**
+ * «Новые карточки за рекламу» (M1-18) — по центру поля, под местом «Взять» (оно занято, даже когда «Взять» не видна):
+ * сверху — низ места «Взять» + gap; ширина по раскладке. В стопке с «Открыть за рекламу» место «Взять» ниже — и кнопка ниже.
+ */
+const REFRESH = { rowW: 380, stackW: 440, h: 56, gap: 12 };
 
 /**
  * Окно выбора поверх холста: затемнение на весь экран, «Новый уровень!», карточки (ПК — в ряд, телефон — стопкой).
@@ -46,13 +51,15 @@ export class CardWindow {
   private cards: HTMLButtonElement[] = [];
   private take: HTMLButtonElement | null = null;
   private unlocks: HTMLButtonElement[] = [];
+  private refresh: HTMLButtonElement | null = null;
 
-  /** onUnlock — нажата «Открыть за рекламу»; реклама и открытие — в main.ts. */
+  /** onUnlock — нажата «Открыть за рекламу», onRefresh — «Новые карточки за рекламу» (M1-18); реклама и награда — в main.ts. */
   constructor(
     host: HTMLElement,
     private readonly game: Game,
     private readonly text: (key: string) => string,
     private readonly onUnlock: () => void = () => {},
+    private readonly onRefresh: () => void = () => {},
   ) {
     this.dim.className = 'cards-dim';
     this.dim.dataset.testid = 'cards';
@@ -147,6 +154,8 @@ export class CardWindow {
       this.unlocks.push(btn);
     });
     this.panel.append(...this.unlocks);
+    this.refresh = this.game.canRefreshCards() ? this.refreshButton(layout) : null;
+    if (this.refresh) this.panel.append(this.refresh);
 
     const take = document.createElement('button');
     take.className = 'cards-take';
@@ -190,6 +199,28 @@ export class CardWindow {
     this.win?.cards.forEach((offer, i) => (this.cards[i]!.disabled = !this.ready || !offer.available));
     if (this.take) this.take.disabled = !this.ready;
     for (const u of this.unlocks) u.disabled = !this.ready;
+    if (this.refresh) this.refresh.disabled = !this.ready;
+  }
+
+  /** «Новые карточки за рекламу» под местом «Взять» (REFRESH). */
+  private refreshButton(layout: Layout): HTMLButtonElement {
+    const b = BOX[layout];
+    const n = this.cards.length;
+    const row = layout === 'landscape';
+    const below = this.unlocks.length > 0 ? UNLOCK.h + UNLOCK.gap : 0;
+    const takeTop = row ? b.top + b.cardH + b.takeGap : b.top + n * b.cardH + (n - 1) * b.gap + b.takeGap + below;
+    const width = row ? REFRESH.rowW : REFRESH.stackW;
+    const btn = document.createElement('button');
+    btn.className = 'cards-refresh';
+    btn.dataset.testid = 'cards-refresh';
+    btn.textContent = this.text('ui.refresh_cards');
+    Object.assign(btn.style, {
+      left: `${(DESIGN[layout].w - width) / 2}px`, top: `${takeTop + b.takeH + REFRESH.gap}px`, width: `${width}px`, height: `${REFRESH.h}px`,
+    });
+    btn.addEventListener('click', () => {
+      if (this.ready) this.onRefresh();
+    });
+    return btn;
   }
 
   private el(tag: string, cls: string, text: string, pos?: { top: number }): HTMLElement {

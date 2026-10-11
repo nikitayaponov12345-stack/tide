@@ -121,6 +121,7 @@ ui.new_level,Новый уровень!,Level up!
 ui.pause,Пауза,Pause
 ui.place,Поставить,Place
 ui.play_on,Играть дальше,Keep playing
+ui.refresh_cards,Новые карточки за рекламу,New cards with ad
 ui.repair,Ремонт,Repair
 ui.resume,Продолжить,Resume
 ui.resume_plaque,{location} · {level} уровень,{location} · level {level}

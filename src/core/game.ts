@@ -1,17 +1,21 @@
 import { BossVisits, type BossSide } from './boss';
-import { BOTTLE_ROLE, Boost } from './boost';
+import { Boost } from './boost';
 import { BoostOffer } from './boost-offer';
 import { TIME_EPS } from './clock';
-import { FLOW_ROLES, type CardKind, type Tables } from './data/tables';
+import type { CardKind, Tables } from './data/tables';
 import { Deck, type OfferCard } from './deck';
 import { Enemies } from './enemies';
 import { LocationEvents } from './events';
 import { FinalBoss } from './final-boss';
-import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, debugLevelUp, openNext, placeCell, takeCard, unlockWhirlpool } from './game-cards';
+import {
+  BUILDINGS_IN_GAME, buildSpots, canPlace, canRefreshCards, collectLevelUps, debugLevelUp, openNext, placeCell, refreshCards, takeCard,
+  unlockWhirlpool,
+} from './game-cards';
+import { stepCatch } from './game-catch';
 import { adDone, doubleChest, takeBoostOffer } from './game-rewards';
 import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
 import { enemiesContext, finalHit, levelCap, playOn, stepThreats } from './game-threats';
-import { Net, type CaughtItem } from './net';
+import { Net } from './net';
 import { Progression } from './progression';
 import { Raft, type Spot } from './raft';
 import { Rng } from './rng';
@@ -25,16 +29,14 @@ import { World } from './world';
 
 /** rewarded — у площадки есть реклама за награду (нет поля — есть); whirlpoolUnlocked — воронку уже открыли в кампании (нет поля — нет). */
 export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean; whirlpoolUnlocked?: boolean }
-/** Окно выбора уровня level; на каждое окно — новый объект. */
-export interface OfferWindow { level: number; cards: OfferCard[] }
+/** Окно выбора уровня level; на каждое окно — новый объект. refreshed — «Новые карточки» в нём уже были (M1-18); нет поля — нет. */
+export interface OfferWindow { level: number; cards: OfferCard[]; refreshed?: boolean }
 export type Weapon = 'net' | 'spear';
 
 export type { GameSnapshot } from './game-snapshot';
 
 /** Виды карточек в игре. */
 const KINDS: readonly CardKind[] = ['raft', 'building', 'building_upgrade', 'sailor_upgrade'];
-/** Роль предмета, улов которой (вместе со второй клеткой) приводит первого врага: в Лагуне — бочонок. */
-const FIRST_ENEMY_ROLE = 'medium';
 
 /** Ядро целиком: мир, плот, моряк, его сеть и копьё, враги, буст, прогрессия, окно выбора, стройка (game-cards.ts), счётчики и команды ввода. */
 export class Game {
@@ -56,7 +58,7 @@ export class Game {
   readonly deck: Deck;
   readonly stats = new Stats();
   /** Сила локации: множитель опыта, тот же, что у Progression. */
-  private readonly xpMult: number;
+  readonly xpMult: number;
   window: OfferWindow | null = null;
   build: { card: string } | null = null;
   /** Открыто окно паузы. В снимок не входит: после загрузки игра идёт. */
@@ -83,7 +85,7 @@ export class Game {
   hasWalked = false;
   /** Время мира, когда клеток впервые стало две; null — ещё не стало. */
   secondCellMs: number | null = null;
-  /** Сеть хоть раз вернула предмет роли FIRST_ENEMY_ROLE. */
+  /** Сеть хоть раз вернула предмет роли FIRST_ENEMY_ROLE (game-catch.ts). */
   mediumCaught = false;
   /** Уровни, чьи окна ещё не показаны. Открыто для game-cards.ts и снимка; снаружи не трогать. */
   readonly pending: number[] = [];
@@ -188,18 +190,7 @@ export class Game {
     // Угрозы первыми: множители события и буста действуют уже в этом шаге (порядок — в game-threats.ts).
     stepThreats(this, dtMs);
     this.world.step(dtMs);
-    const caught = this.net.step(dtMs, this.world);
-    if (caught) {
-      this.addCatch(caught);
-      this.stats.itemsCaught += caught.length;
-      if (caught.length === 0) this.stats.emptyThrows++;
-    }
-    // Улов башен и воронок — опыт и значки, как улов сети моряка (без счётчиков бросков моряка).
-    const fromTowers = this.towers.step(dtMs, this.world, this.raft);
-    const fromWhirlpools = this.whirlpools.step(dtMs, this.world, this.raft);
-    this.stats.towerCaught += fromTowers.length;
-    this.stats.whirlpoolCaught += fromWhirlpools.length;
-    if (fromTowers.length + fromWhirlpools.length > 0) this.addCatch([...fromTowers, ...fromWhirlpools]);
+    stepCatch(this, dtMs);
     if (this.spear.step(dtMs, this.spearTargets).length > 0) this.stats.spearHits++;
     this.spearTowers.step(dtMs, this.enemies, [this.boss, this.finalBoss], this.spearTargets, this.raft);
     this.enemies.step(dtMs, enemiesContext(this));
@@ -335,6 +326,16 @@ export class Game {
     return unlockWhirlpool(this);
   }
 
+  /** Кнопка «Новые карточки за рекламу» в окне выбора (M1-18): реклама за награду, окно не обновляли, взято refresh_after_cards. */
+  canRefreshCards(): boolean {
+    return canRefreshCards(this);
+  }
+
+  /** Реклама досмотрена: новые карточки в окне. Нельзя (canRefreshCards) → false. */
+  refreshCards(): boolean {
+    return refreshCards(this);
+  }
+
   /**
    * Отладка: враг сейчас, без условия и таймера; обычное расписание не запускает, работает и на паузе.
    * С точкой — появляется в ней и туда же уходит. Даёт копьё, как первый враг; leader — вожак события (M1-16).
@@ -373,21 +374,5 @@ export class Game {
   setLevel(level: number): void {
     this.progression.setLevel(level);
     this.world.setLevel(level);
-  }
-
-  /**
-   * Улов сети или башен: значки, опыт по ролям, бочонок для первого врага. Под бустом опыт потока идёт ещё и в boostFlowXp.
-   * Вернулась бутылка — буст.
-   */
-  private addCatch(caught: CaughtItem[]): void {
-    this.progression.addCatch(caught, this.world.timeMs);
-    const boosted = this.boost.active;
-    for (const it of caught) {
-      const xp = it.xp * this.xpMult;
-      this.stats.xpByRole[it.role] += xp;
-      if (boosted && FLOW_ROLES.includes(it.role)) this.stats.boostFlowXp += xp;
-    }
-    if (caught.some((it) => it.role === FIRST_ENEMY_ROLE)) this.mediumCaught = true;
-    if (caught.some((it) => it.role === BOTTLE_ROLE)) this.boost.bottleBack();
   }
 }

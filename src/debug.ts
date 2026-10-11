@@ -69,7 +69,13 @@ export interface GameDebug {
     /** Клетка моряка и её центр в координатах мира. */
     sailor: { gx: number; gy: number; x: number; y: number };
     /** Окно выбора: карточки в порядке показа. */
-    window: null | { level: number; cards: Array<{ id: string; available: boolean; reason: string | null }> };
+    window: null | {
+      level: number;
+      cards: Array<{ id: string; available: boolean; reason: string | null }>;
+      /** «Новые карточки» уже были и можно ли их сейчас (M1-18). */
+      refreshed: boolean;
+      canRefresh: boolean;
+    };
     /** Стройка: карточка и места стройки (у «Плота» — для новой клетки, у постройки — свободные целые клетки). */
     build: null | { card: string; candidates: Array<{ gx: number; gy: number }> };
     /** Клетки плота с прочностью и постройкой (id из buildings.csv или null). */
