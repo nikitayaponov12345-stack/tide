@@ -32,6 +32,9 @@ export interface SimResult {
   spearHits: number;
   enemiesKilled: number;
   enemiesEscaped: number;
+  /** Вожаков событий пришло и побеждено копьями (с M1-16). */
+  leaders: number;
+  leadersKilled: number;
   lootDropped: number;
   cells: number;
   windows: number;
@@ -139,6 +142,8 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     spearHits: s.spearHits,
     enemiesKilled: s.enemiesKilled,
     enemiesEscaped: s.enemiesEscaped,
+    leaders: s.leaders,
+    leadersKilled: s.leadersKilled,
     lootDropped: s.lootDropped,
     cells: game.raft.cells.length,
     windows,

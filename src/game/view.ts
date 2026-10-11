@@ -31,6 +31,8 @@ const REPAIR_STROKE = { width: 3, color: 0xffd166 } as const;
 /** Места для новой клетки в стройке — бледные. */
 const CANDIDATE_ALPHA = 0.2;
 const ENEMY_COLOR = 0xd62828;
+/** Вожак события (M1-16) — темнее мелкого и с белой обводкой; радиус — свой, из ядра. */
+const LEADER = { color: 0x8b0a0a, rim: { width: 3, color: 0xffffff, alpha: 0.8 } } as const;
 /** Враг под водой (идёт к клетке и уходит) — полупрозрачный, у клетки — нет. */
 const ENEMY_UNDERWATER_ALPHA = 0.45;
 /** Тёмная вода в событие локации: слой поверх воды, под миром. */
@@ -52,7 +54,6 @@ const LABEL_STYLE = { fontFamily: 'system-ui, sans-serif', fontSize: 16, fontWei
 export interface ViewOptions {
   waterColor: string; // цвет воды локации
   cellPx: number;     // сторона клетки плота
-  enemyRadius: number; // радиус мелкого врага
 }
 
 /**
@@ -199,11 +200,10 @@ export class View {
     }
   }
 
-  /** Враги — красные круги, под водой полупрозрачные (в событие с enemiesSurface — все целиком); число прочности над каждым. */
+  /** Враги — красные круги своего радиуса (вожак — тёмный с обводкой), под водой полупрозрачные (в событие с enemiesSurface — все целиком); число прочности над каждым. */
   private syncEnemies(game: Game): void {
     const list = game.enemies.list;
     const surface = game.events.enemiesSurface;
-    const r = this.opts.enemyRadius;
     this.enemies.clear();
     while (this.enemyHp.children.length < list.length) {
       const t = new Text({ text: '', style: { ...LABEL_STYLE, fill: 0xffffff } });
@@ -213,12 +213,16 @@ export class View {
     this.enemyHp.children.forEach((c, i) => (c.visible = i < list.length));
     list.forEach((e, i) => {
       const alpha = surface || e.phase === 'wait' ? 1 : ENEMY_UNDERWATER_ALPHA;
-      this.enemies.circle(e.x, e.y, r).fill({ color: ENEMY_COLOR, alpha });
+      if (e.leader) {
+        this.enemies.circle(e.x, e.y, e.radius).fill({ color: LEADER.color, alpha }).stroke({ ...LEADER.rim, alpha: LEADER.rim.alpha * alpha });
+      } else {
+        this.enemies.circle(e.x, e.y, e.radius).fill({ color: ENEMY_COLOR, alpha });
+      }
       const t = this.enemyHp.children[i] as Text;
       const hp = String(e.hp);
       if (t.text !== hp) t.text = hp;
       t.alpha = alpha;
-      t.position.set(e.x, e.y - r - 2);
+      t.position.set(e.x, e.y - e.radius - 2);
     });
   }
 

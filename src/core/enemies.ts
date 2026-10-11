@@ -6,27 +6,33 @@ import type { Stats } from './stats';
 import type { World } from './world';
 
 export type EnemyPhase = 'approach' | 'wait' | 'leave';
-/** Мелкий враг: плывёт к клетке цели, стоит у неё и уходит в точку появления. */
+/** Мелкий враг: плывёт к клетке цели, стоит у неё и уходит в точку появления; leader — вожак события (M1-16); нет поля — обычный. */
 export interface Enemy {
   id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase;
-  spawnX: number; spawnY: number; targetGx: number; targetGy: number; waitLeftMs: number;
+  spawnX: number; spawnY: number; targetGx: number; targetGy: number; waitLeftMs: number; leader?: boolean;
 }
 /** Попадание по врагу: где он был и сколько прочности снято. */
 export interface EnemyHit { x: number; y: number; dealt: number }
 /**
  * Что враги видят у игры на шаге; ready — условие первого врага выполнено; buildings — число построек (нет — 0);
- * rateMult — во сколько раз чаще враги в событие локации (нет — 1); blocked — идёт буст: новые враги не приходят.
+ * rateMult — во сколько раз чаще враги в событие локации (нет — 1); blocked — идёт буст: новые враги не приходят;
+ * event — идёт событие: его номер за партию и сколько оно уже идёт (нет поля — события нет).
  */
-export interface EnemiesContext { raft: Raft; level: number; ready: boolean; buildings?: number; rateMult?: number; blocked?: boolean }
+export interface EnemiesContext {
+  raft: Raft; level: number; ready: boolean; buildings?: number; rateMult?: number; blocked?: boolean;
+  event?: { count: number; elapsedMs: number };
+}
 
-export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number }
+/** leaderEvent — номер события, в которое уже приходил вожак (в записи до M1-16 поля нет — −1). */
+export interface EnemiesSnapshot { list: Enemy[]; spawned: number; started: boolean; acc: number; nextId: number; rng: number; leaderEvent?: number }
 
 /** Повадка, которую знает M1: краб Лагуны идёт к клетке под водой и кусает её. */
 const WALK_UNDERWATER = 'walk_underwater';
 
 /**
  * Мелкие враги локации: появление по таймеру за краем поля, путь к самой дальней целой клетке (мимо центральной),
- * укус по приходу, ожидание, уход, урон копьём и добыча. Свой Rng (ARCHITECTURE, инвариант 3): добыча не сдвигает поток предметов мира.
+ * укус по приходу, ожидание, уход, урон копьём и добыча; в событие локации — вожак (M1-16): крупнее, крепче, медленнее,
+ * кусает сильнее, добычи на урон меньше. Свой Rng (ARCHITECTURE, инвариант 3): добыча не сдвигает поток предметов мира.
  */
 export class Enemies {
   readonly list: Enemy[] = [];
@@ -36,6 +42,8 @@ export class Enemies {
   private started = false;
   private acc = 0;
   private nextId = 1;
+  /** Номер события, в которое уже приходил вожак; −1 — ни в какое. */
+  private leaderEvent = -1;
   /** Враг локации с известной повадкой; null — в M0 враги не приходят. */
   private readonly speed: number | null;
   private readonly loot: ItemRow | null;
@@ -44,6 +52,8 @@ export class Enemies {
   private readonly bite: number;
   private readonly radius: number;
   private readonly cellPx: number;
+  /** Вожак события: срок от начала события, прочность на уровень, укус × сила урона локации, скорость, радиус, урон на предмет. */
+  private readonly leader: { afterMs: number; hpPerLevel: number; bite: number; speed: number; radius: number; lootPerHp: number };
 
   constructor(
     private readonly data: Tables,
@@ -61,6 +71,11 @@ export class Enemies {
     this.bite = known ? Number(row.damage) * loc.enemyDmgMult : 0;
     this.radius = data.num('enemy_radius_px');
     this.cellPx = data.num('cell_px');
+    this.leader = {
+      afterMs: data.num('leader_after_s') * 1000, hpPerLevel: data.num('leader_hp_per_level'),
+      bite: data.num('leader_damage') * loc.enemyDmgMult, speed: data.num('leader_speed'),
+      radius: data.num('leader_radius_px'), lootPerHp: data.num('leader_loot_per_hp'),
+    };
   }
 
   /** Интервал между врагами, мс: база / (1 + доля × построек) / множитель события, не чаще минимума. */
@@ -73,7 +88,7 @@ export class Enemies {
   snapshot(): EnemiesSnapshot {
     return {
       list: this.list.map((e) => ({ ...e })), spawned: this.spawned, started: this.started, acc: this.acc,
-      nextId: this.nextId, rng: this.rng.getState(),
+      nextId: this.nextId, rng: this.rng.getState(), leaderEvent: this.leaderEvent,
     };
   }
 
@@ -85,6 +100,7 @@ export class Enemies {
     this.acc = s.acc;
     this.nextId = s.nextId;
     this.rng.setState(s.rng);
+    this.leaderEvent = s.leaderEvent ?? -1;
   }
 
   /** Шаг: движение врагов → таймер появления; в шаг, когда условие стало выполнено, — первый враг. Под бустом таймер стоит. */
@@ -108,11 +124,18 @@ export class Enemies {
       this.acc = 0;
       this.spawn(ctx, null);
     }
+    // Вожак (M1-16): один на событие, на leader_after_s от его начала; не раньше первого врага и не под бустом —
+    // пропущенный срок вожак догоняет в первом шаге, когда можно, если событие ещё идёт.
+    const ev = ctx.event;
+    if (this.started && ev && ev.count !== this.leaderEvent && ev.elapsedMs + TIME_EPS >= this.leader.afterMs) {
+      this.leaderEvent = ev.count;
+      this.spawn(ctx, null, true);
+    }
   }
 
   /** Враг сейчас, без условия и таймера (отладка). С точкой — появляется в ней и туда же уходит. null — у локации нет врага M0. */
-  spawnNow(ctx: EnemiesContext, at: { x: number; y: number } | null): Enemy | null {
-    return this.speed === null ? null : this.spawn(ctx, at);
+  spawnNow(ctx: EnemiesContext, at: { x: number; y: number } | null, leader = false): Enemy | null {
+    return this.speed === null ? null : this.spawn(ctx, at, leader);
   }
 
   /** Урон всем врагам ближе reach + радиус к (x, y): min(damage, прочность), добыча по снятому, прочность 0 — утонул. */
@@ -125,12 +148,14 @@ export class Enemies {
       if (!(dealt > 0)) continue;
       e.hp -= dealt;
       out.push({ x: e.x, y: e.y, dealt });
-      // Один предмет на каждые enemy_hp_mult единиц снятой прочности (data/README.md, «Добыча»).
-      const drops = Math.ceil(before / this.hpMult - 1e-9) - Math.ceil(e.hp / this.hpMult - 1e-9);
+      // Один предмет на каждые enemy_hp_mult единиц снятой прочности, у вожака — на leader_loot_per_hp × enemy_hp_mult (data/README.md, «Добыча»).
+      const per = e.leader ? this.hpMult * this.leader.lootPerHp : this.hpMult;
+      const drops = Math.ceil(before / per - 1e-9) - Math.ceil(e.hp / per - 1e-9);
       for (let i = 0; i < drops; i++) this.dropLoot(e);
       if (e.hp <= 0) {
         this.remove(e);
         this.stats.enemiesKilled++;
+        if (e.leader) this.stats.leadersKilled++;
       }
     }
     return out;
@@ -144,8 +169,8 @@ export class Enemies {
     return n;
   }
 
-  /** Новый враг: случайный край за полем (или точка), цель — самая дальняя целая клетка, кроме центральной, прочность по уровню. Броски: край, место, прочность. */
-  private spawn(ctx: EnemiesContext, at: { x: number; y: number } | null): Enemy {
+  /** Новый враг: случайный край за полем (или точка), цель — самая дальняя целая клетка, кроме центральной, прочность по уровню. Броски: край, место, прочность (у вожака прочность без броска). */
+  private spawn(ctx: EnemiesContext, at: { x: number; y: number } | null, leader = false): Enemy {
     let x: number;
     let y: number;
     if (at) {
@@ -173,10 +198,16 @@ export class Enemies {
         target = c;
       }
     }
+    const hp = leader ? this.leader.hpPerLevel * ctx.level * this.hpMult : this.rollHp(ctx.level);
     const e: Enemy = {
-      id: this.nextId++, x, y, hp: this.rollHp(ctx.level), radius: this.radius, phase: 'approach',
+      id: this.nextId++, x, y, hp, radius: leader ? this.leader.radius : this.radius, phase: 'approach',
       spawnX: x, spawnY: y, targetGx: target.gx, targetGy: target.gy, waitLeftMs: 0,
     };
+    // У обычного краба поля leader нет совсем: записи не меняются.
+    if (leader) {
+      e.leader = true;
+      this.stats.leaders++;
+    }
     this.list.push(e);
     this.spawned++;
     return e;
@@ -191,7 +222,7 @@ export class Enemies {
 
   /** Время ms для врага: остаток уходит в следующую фазу. raft — для укуса. */
   private advance(e: Enemy, ms: number, raft: Raft): void {
-    const speed = this.speed!;
+    const speed = e.leader ? this.leader.speed : this.speed!;
     let t = ms;
     while (t > TIME_EPS) {
       if (e.phase === 'approach') {
@@ -204,7 +235,7 @@ export class Enemies {
           t -= (need / speed) * 1000;
           // Укус — один раз, по приходу; цель не меняется, даже если клетку разбили по дороге.
           this.stats.bites++;
-          this.stats.cellDamage += raft.damage(e.targetGx, e.targetGy, this.bite);
+          this.stats.cellDamage += raft.damage(e.targetGx, e.targetGy, e.leader ? this.leader.bite : this.bite);
           e.phase = 'wait';
           e.waitLeftMs = this.data.num('enemy_wait_ms');
         } else {

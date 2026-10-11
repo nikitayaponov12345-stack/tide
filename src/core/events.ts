@@ -34,6 +34,11 @@ export class LocationEvents {
     return this.leftMs > 0;
   }
 
+  /** Сколько идёт событие (M1-16: вожак приходит на leader_after_s); события нет — 0. */
+  get elapsedMs(): number {
+    return this.active ? this.durationMs - this.leftMs : 0;
+  }
+
   /** Во сколько раз чаще приходят враги; вне события — 1. */
   get enemyRateMult(): number {
     return this.active ? Number(this.row!.enemy_rate_mult) : 1;

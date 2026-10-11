@@ -130,7 +130,7 @@ describe('Шторм в игре', () => {
     expect(g.events.id).toBe(STORM.id);
   });
 
-  it('с debugEvent за duration_s минус шаг крабов 1 + floor((duration − шаг) / интервал)', () => {
+  it('с debugEvent за duration_s минус шаг крабов 1 + floor((duration − шаг) / интервал) и вожак (M1-16)', () => {
     const g = new Game(DATA, CFG);
     expect(g.raft.add(1, 0)).toBe(true);
     g.mediumCaught = true;
@@ -139,7 +139,8 @@ describe('Шторм в игре', () => {
     for (let i = 0; i < total; i++) g.step(STEP_MS);
     expect(g.events.active).toBe(true);
     const interval = g.enemies.intervalMs(0, RATE);
-    expect(g.enemies.spawned).toBe(1 + Math.floor((DURATION_MS - STEP_MS) / interval));
+    // Вожак — один на событие, сверх таймера.
+    expect([g.enemies.spawned, g.stats.leaders]).toEqual([2 + Math.floor((DURATION_MS - STEP_MS) / interval), 1]);
   });
 
   it('в окне выбора таймер события стоит; debugEvent работает и на паузе', () => {

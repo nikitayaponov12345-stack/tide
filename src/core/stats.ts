@@ -36,6 +36,8 @@ export class Stats {
   finalStrikes = 0;  // его ударов по клеткам
   finalCellDamage = 0; // прочности клеток снято его ударами
   bigChestXp = 0;    // опыт большого сундука, × сила локации; он же в xpGained
+  leaders = 0;       // вожаков пришло (M1-16; они же в enemies.spawned)
+  leadersKilled = 0; // вожаков побеждено копьями (они же в enemiesKilled)
   /** Опыт вернувшегося улова по ролям, × сила локации; считается в момент возврата сети, а не по прилёту значков. */
   readonly xpByRole = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Role, number>;
 

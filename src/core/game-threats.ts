@@ -32,11 +32,12 @@ function bottleInNet(g: Game): boolean {
   return g.net.caught.some(isBottle) || g.towers.list.some((t) => t.nets.some((n) => n.caught.some(isBottle)));
 }
 
-/** Что враги видят у игры на шаге; под бустом и в финальный бой новые враги не приходят. */
+/** Что враги видят у игры на шаге; под бустом и в финальный бой новые враги не приходят; в событие — вожак (M1-16). */
 export function enemiesContext(g: Game): EnemiesContext {
   return {
     raft: g.raft, level: g.progression.level, ready: g.raft.cells.length >= 2 && g.mediumCaught,
     buildings: g.raft.buildingCount(), rateMult: g.events.enemyRateMult, blocked: g.boost.active || g.finalBoss.fighting,
+    event: g.events.active ? { count: g.events.count, elapsedMs: g.events.elapsedMs } : undefined,
   };
 }
 

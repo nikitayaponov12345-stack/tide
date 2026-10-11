@@ -337,11 +337,11 @@ export class Game {
 
   /**
    * Отладка: враг сейчас, без условия и таймера; обычное расписание не запускает, работает и на паузе.
-   * С точкой — появляется в ней и туда же уходит. Даёт копьё, как первый враг.
+   * С точкой — появляется в ней и туда же уходит. Даёт копьё, как первый враг; leader — вожак события (M1-16).
    */
-  debugSpawnEnemy(x?: number, y?: number): void {
+  debugSpawnEnemy(x?: number, y?: number, leader = false): void {
     const at = x !== undefined && y !== undefined ? { x, y } : null;
-    if (this.enemies.spawnNow(enemiesContext(this), at)) this.spearOwned = true;
+    if (this.enemies.spawnNow(enemiesContext(this), at, leader)) this.spearOwned = true;
   }
 
   /** Отладка: событие локации сейчас (идёт — начинается заново); работает и на паузе. */

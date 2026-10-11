@@ -61,6 +61,8 @@ export interface GameDebug {
       finalFightMs: number; finalDamage: number; finalStrikes: number; finalCellDamage: number;
       /** Опыт большого сундука (× сила локации; он же в xpGained). */
       bigChestXp: number;
+      /** Вожаки событий (M1-16): сколько пришло и сколько побеждено. */
+      leaders: number; leadersKilled: number;
       /** Опыт вернувшегося улова по ролям, × сила локации. */
       xpByRole: Record<Role, number>;
     };
@@ -83,7 +85,7 @@ export interface GameDebug {
     spearOwned: boolean;
     spear: { state: SpearState; x: number; y: number; damage: number };
     /** Мелкие враги, координаты мира. */
-    enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase }>;
+    enemies: Array<{ id: number; x: number; y: number; hp: number; radius: number; phase: EnemyPhase; leader: boolean }>;
     /** Сетевые башни: клетка и сети, caught — сколько предметов в сети. */
     towers: Array<{ gx: number; gy: number; nets: Array<{ state: TowerNetState; x: number; y: number; caught: number }> }>;
     /** Копейные башни: урон удара; у каждой — клетка, копьё (у башни или в полёте) и остаток отдыха. */
@@ -142,8 +144,8 @@ export interface GameDebug {
   };
   /** Опыт до следующего уровня сразу: окно открывается тут же. */
   debugLevelUp(): void;
-  /** Краб сейчас, без условия и таймера (и на паузе); с точкой — в ней. Даёт копьё. */
-  debugSpawnEnemy(x?: number, y?: number): void;
+  /** Краб сейчас, без условия и таймера (и на паузе); с точкой — в ней; leader — вожак (M1-16). Даёт копьё. */
+  debugSpawnEnemy(x?: number, y?: number, leader?: boolean): void;
   /** Событие локации сейчас (идёт — заново), и на паузе. */
   debugEvent(): void;
   /** Визит босса сейчас вдоль стороны side (нет — случайной), и на паузе; идёт визит — ничего. */

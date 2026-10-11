@@ -25,7 +25,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.22';
+const VERSION = '0.0.23';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -78,7 +78,7 @@ async function boot(): Promise<void> {
   const game = restored ?? new Game(DATA, cfg);
   const { world, net, progression, stats, sailor, raft } = game;
   const cellPx = DATA.num('cell_px');
-  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx, enemyRadius: DATA.num('enemy_radius_px') });
+  const view = new View(stage.root, { waterColor: DATA.location(LOCATION).waterColor, cellPx });
   view.build(stage.layout);
   stage.onLayout = (layout) => {
     const s = worldSize(layout);
@@ -233,7 +233,7 @@ async function boot(): Promise<void> {
       weapon: game.weapon,
       spearOwned: game.spearOwned,
       spear: { state: game.spear.state, x: game.spear.x, y: game.spear.y, damage: game.spear.damage },
-      enemies: game.enemies.list.map(({ id, x, y, hp, radius, phase }) => ({ id, x, y, hp, radius, phase })),
+      enemies: game.enemies.list.map(({ id, x, y, hp, radius, phase, leader }) => ({ id, x, y, hp, radius, phase, leader: leader === true })),
       towers: game.towers.list.map((t) => ({
         gx: t.gx, gy: t.gy, nets: t.nets.map((n) => ({ state: n.state, x: n.x, y: n.y, caught: n.caught.length })),
       })),
@@ -275,7 +275,7 @@ async function boot(): Promise<void> {
       repairCell: (gx, gy) => game.repairCell(gx, gy),
     },
     debugLevelUp: () => game.debugLevelUp(),
-    debugSpawnEnemy: (x, y) => game.debugSpawnEnemy(x, y),
+    debugSpawnEnemy: (x, y, leader) => game.debugSpawnEnemy(x, y, leader),
     debugEvent: () => game.debugEvent(),
     debugBossVisit: (side) => game.debugBossVisit(side),
     debugFinalBoss: (side) => game.finalBoss.start(game.raft, side),
