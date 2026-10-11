@@ -24,11 +24,18 @@ import { Spear, type SpearTargets } from './spear';
 import { SpearTowers } from './spear-towers';
 import { Stats } from './stats';
 import { Towers } from './towers';
+import { Tutorial } from './tutorial';
 import { Whirlpools } from './whirlpools';
 import { World } from './world';
 
-/** rewarded — у площадки есть реклама за награду (нет поля — есть); whirlpoolUnlocked — воронку уже открыли в кампании (нет поля — нет). */
-export interface GameConfig { halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean; whirlpoolUnlocked?: boolean }
+/**
+ * rewarded — есть реклама за награду (нет поля — есть); whirlpoolUnlocked — воронка открыта в кампании, tutorial — обучение
+ * (M1-19); нет поля — нет.
+ */
+export interface GameConfig {
+  halfW: number; halfH: number; speedMult: number; locationId: string; seed: number; rewarded?: boolean; whirlpoolUnlocked?: boolean;
+  tutorial?: boolean;
+}
 /** Окно выбора уровня level; на каждое окно — новый объект. refreshed — «Новые карточки» в нём уже были (M1-18); нет поля — нет. */
 export interface OfferWindow { level: number; cards: OfferCard[]; refreshed?: boolean }
 export type Weapon = 'net' | 'spear';
@@ -57,6 +64,8 @@ export class Game {
   readonly progression: Progression;
   readonly deck: Deck;
   readonly stats = new Stats();
+  /** Обучение (M1-19): какой шаг показывает рука. */
+  readonly tutorial: Tutorial;
   /** Сила локации: множитель опыта, тот же, что у Progression. */
   readonly xpMult: number;
   window: OfferWindow | null = null;
@@ -126,6 +135,7 @@ export class Game {
     this.boost = new Boost(data, new Rng(cfg.seed + 6), this.world);
     this.rewarded = cfg.rewarded ?? true;
     this.whirlpoolUnlocked = cfg.whirlpoolUnlocked ?? false;
+    this.tutorial = new Tutorial(cfg.tutorial ?? false);
     this.boostOffer = new BoostOffer(data, this.rewarded);
     this.xpMult = loc.xpMult;
     this.progression = new Progression(data, loc.xpMult);
@@ -275,6 +285,7 @@ export class Game {
   setPull(on: boolean): void {
     this.hold = on;
     this.net.setPull(on && this.weapon === 'net');
+    this.tutorial.notePull(this.net.state === 'pulling');
   }
 
   noteTap(): void {

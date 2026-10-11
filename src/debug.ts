@@ -7,6 +7,7 @@ import type { NetState } from './core/net';
 import type { SpearState } from './core/spear';
 import type { SpearTowerState } from './core/spear-towers';
 import type { TowerNetState } from './core/towers';
+import type { TutorialStep } from './core/tutorial';
 import type { Layout } from './game/layout';
 import type { PlatformCall } from './platform/platform';
 
@@ -131,6 +132,8 @@ export interface GameDebug {
     cleared: boolean;
     /** «Сундук ×2» за рекламу уже взят (M1-17). */
     chestDoubled: boolean;
+    /** Шаг обучения, который показывает рука (M1-19); руки нет — null. */
+    tutorial: TutorialStep | null;
     /** Выше этого уровень не растёт; без предела — null. */
     levelCap: number | null;
   };

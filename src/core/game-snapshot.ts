@@ -14,6 +14,7 @@ import type { SpearSnapshot } from './spear';
 import type { SpearTowersSnapshot } from './spear-towers';
 import type { StatsSnapshot } from './stats';
 import type { TowersSnapshot } from './towers';
+import type { TutorialSnapshot } from './tutorial';
 import type { WhirlpoolsSnapshot } from './whirlpools';
 import type { WorldSnapshot } from './world';
 
@@ -43,6 +44,8 @@ export interface GameSnapshot {
   cleared?: boolean;
   /** «Сундук ×2» уже взят (с M1-17); нет поля — нет. */
   chestDoubled?: boolean;
+  /** Обучение (с M1-19); нет поля — запись до обучения: партия без него. */
+  tutorial?: TutorialSnapshot;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -58,7 +61,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
     spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(), boostOffer: g.boostOffer.snapshot(),
     whirlpools: g.whirlpools.snapshot(), finalBoss: g.finalBoss.snapshot(), cleared: g.cleared,
-    chestDoubled: g.chestDoubled,
+    chestDoubled: g.chestDoubled, tutorial: g.tutorial.snapshot(),
   };
 }
 
@@ -93,5 +96,6 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   if (s.finalBoss) g.finalBoss.restore(s.finalBoss);
   g.cleared = s.cleared ?? false;
   g.chestDoubled = s.chestDoubled ?? false;
+  g.tutorial.restore(s.tutorial ?? { enabled: false, pulled: false });
   g.progression.maxLevel = levelCap(g);
 }

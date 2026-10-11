@@ -421,6 +421,33 @@
         border: 3px solid #fff;
         border-radius: 14px;
       }
+      /* Рука обучения (M1-19): кружок с пульсом поверх всего, нажатия проходят сквозь (заготовка до арта). */
+      #ui .tutorial-hand {
+        position: absolute;
+        z-index: 30;
+        box-sizing: border-box;
+        width: 64px;
+        height: 64px;
+        margin: -32px 0 0 -32px;
+        border: 4px solid #fff;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+      }
+      #ui .tutorial-hand.tap {
+        animation: tutorial-tap 1s ease-in-out infinite;
+      }
+      #ui .tutorial-hand.hold {
+        animation: tutorial-hold 1.6s ease-in-out infinite;
+      }
+      @keyframes tutorial-tap {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(0.7); }
+      }
+      @keyframes tutorial-hold {
+        0%, 100% { transform: scale(1); background: rgba(255, 255, 255, 0.15); }
+        30%, 80% { transform: scale(0.7); background: rgba(255, 255, 255, 0.6); }
+      }
     </style>
   </head>
   <body>

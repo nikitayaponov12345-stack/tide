@@ -24,8 +24,9 @@ import { PlaceButton } from './ui/place';
 import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
+import { TutorialHand } from './ui/tutorial';
 
-const VERSION = '0.0.25';
+const VERSION = '0.0.26';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -62,6 +63,8 @@ async function boot(): Promise<void> {
     ...worldSize(stage.layout), locationId: LOCATION, seed: SEED, rewarded: platform.rewardedAvailable(),
     // запись кампании, а не партии
     whirlpoolUnlocked: parsed?.campaign?.whirlpoolUnlocked === true,
+    // Обучение (M1-19) — в новой партии первой локации; у продолженной — из записи
+    tutorial: DATA.location(LOCATION).order === 1,
   };
   let restored: Game | null = null;
   const run = parsed?.run;
@@ -181,6 +184,8 @@ async function boot(): Promise<void> {
   });
   window.addEventListener('pagehide', () => saver.save());
   const slots = new WeaponSlots(ui, game, text);
+  // Рука обучения — последней: поверх всех кнопок и окон
+  const tutorial = new TutorialHand(ui, game, cellPx);
   new PointerInput(stage.app.canvas, game, () => stage.layout, cursor, DATA.num('walk_drag_px'));
   // Шаг с клавиатуры — тоже первое действие игрока; в stats.taps клавиши не входят.
   new KeyboardInput(game, () => control.notePlay());
@@ -212,6 +217,7 @@ async function boot(): Promise<void> {
     slots.update(stage.layout);
     repair.update(stage.layout);
     boostOffer.update(stage.layout);
+    tutorial.update(stage.layout);
     plaque?.update(stage.layout, performance.now());
     overlay.update(
       performance.now(),
@@ -294,6 +300,7 @@ async function boot(): Promise<void> {
       }))(game.finalBoss),
       cleared: game.cleared,
       chestDoubled: game.chestDoubled,
+      tutorial: game.tutorial.step(game),
       levelCap: Number.isFinite(progression.maxLevel) ? progression.maxLevel : null,
     }),
     command: {
