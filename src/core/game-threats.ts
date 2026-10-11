@@ -5,6 +5,7 @@
 import { BOTTLE_ROLE } from './boost';
 import type { EnemiesContext, EnemyHit } from './enemies';
 import type { Game } from './game';
+import { addChest } from './game-rewards';
 import type { CaughtItem } from './net';
 
 /**
@@ -47,10 +48,7 @@ export function finalHit(g: Game, x: number, y: number, reach: number, damage: n
   const alive = !fb.defeated;
   const hits = fb.hit(x, y, reach, damage);
   if (alive && fb.defeated) {
-    g.stats.bigChestXp += fb.chestXp;
-    g.stats.xpGained += fb.chestXp;
-    // На пределе уровня полоса просто полная.
-    g.progression.addXp(fb.chestXp);
+    addChest(g);
     g.cleared = true;
   }
   return hits;

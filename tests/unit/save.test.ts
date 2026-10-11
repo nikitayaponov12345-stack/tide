@@ -276,6 +276,9 @@ describe('Запись: makeSave, parseSave, isNewerSave', () => {
     expect(s.campaign.passed).toEqual(['lagoon']);
     expect(s.rating).toBe(g.stats.xpGained);
     expect(s.run!.game.cleared).toBe(true);
+    expect(s.run!.game.chestDoubled).toBe(false);
+    expect(g.doubleChest()).toBe(true);
+    expect(makeSave(g, 'lagoon', 1).run!.game.chestDoubled).toBe(true);
   });
 
   it('parseSave: null на пустом тексте, не JSON, массиве, плохой версии и плохом run', () => {

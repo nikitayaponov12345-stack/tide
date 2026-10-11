@@ -355,6 +355,8 @@ for (const r of T.ads) {
 for (const r of T.buildings) if (r.ad_unlock === '1' && r.id !== 'whirlpool') err(`${where(r)}: ad_unlock = 1 — только у воронки`);
 const whirlpoolUnlock = T.ads.find((r) => r.place === 'whirlpool_unlock');
 if (!whirlpoolUnlock || whirlpoolUnlock.kind !== 'rewarded') err('data/ads.csv: нет места whirlpool_unlock вида rewarded — воронки за рекламу');
+const doubleChest = T.ads.find((r) => r.place === 'double_chest');
+if (!doubleChest || doubleChest.kind !== 'rewarded') err('data/ads.csv: нет места double_chest вида rewarded — «Сундук ×2» (M1-17)');
 const boostOffer = T.ads.find((r) => r.place === 'boost_offer');
 if (!boostOffer) err('data/ads.csv: нет места boost_offer — кнопки буста за рекламу');
 else for (const c of ['first_after_s', 'cooldown_s', 'visible_s']) if (!(Number(boostOffer[c]) > 0)) err(`${where(boostOffer)}: у boost_offer ${c} должен быть больше 0`);

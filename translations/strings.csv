@@ -106,6 +106,7 @@ ui.ad_unlock,Открыть за рекламу,Unlock with ad
 ui.big_chest,Большой сундук: +{xp} опыта,Big chest: +{xp} XP
 ui.boost_left,Буст {s} с,Boost {s} s
 ui.boost_offer,Буст {s} с за рекламу,{s} s boost for an ad
+ui.chest_double,Сундук ×2 за рекламу,Chest ×2 with ad
 ui.choose_card,Выбери улучшение,Choose an upgrade
 ui.cleared,Локация пройдена,Location cleared
 ui.erase,Стереть прогресс,Erase progress

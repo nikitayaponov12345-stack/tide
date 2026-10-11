@@ -41,6 +41,8 @@ export interface GameSnapshot {
   finalBoss?: FinalBossSnapshot;
   /** Открыто окно «Локация пройдена» (с M1-15); нет поля — закрыто. */
   cleared?: boolean;
+  /** «Сундук ×2» уже взят (с M1-17); нет поля — нет. */
+  chestDoubled?: boolean;
 }
 
 /** Снимок всего, кроме закрытых полей Game (pending, hold): их добавляет Game.snapshot. */
@@ -56,6 +58,7 @@ export function snapshotGame(g: Game): Omit<GameSnapshot, 'pending' | 'hold'> {
     mediumCaught: g.mediumCaught, towers: g.towers.snapshot(), events: g.events.snapshot(), boss: g.boss.snapshot(),
     spearTowers: g.spearTowers.snapshot(), boost: g.boost.snapshot(), boostOffer: g.boostOffer.snapshot(),
     whirlpools: g.whirlpools.snapshot(), finalBoss: g.finalBoss.snapshot(), cleared: g.cleared,
+    chestDoubled: g.chestDoubled,
   };
 }
 
@@ -87,5 +90,6 @@ export function restoreGame(g: Game, s: GameSnapshot): void {
   if (s.boostOffer) g.boostOffer.restore(s.boostOffer);
   if (s.finalBoss) g.finalBoss.restore(s.finalBoss);
   g.cleared = s.cleared ?? false;
+  g.chestDoubled = s.chestDoubled ?? false;
   g.progression.maxLevel = levelCap(g);
 }

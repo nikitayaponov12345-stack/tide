@@ -25,7 +25,7 @@ import { ResumePlaque } from './ui/plaque';
 import { RepairButton } from './ui/repair';
 import { WeaponSlots } from './ui/slots';
 
-const VERSION = '0.0.23';
+const VERSION = '0.0.24';
 /** Метка сборки: короткий хеш коммита от `npm run publish`, иначе 'dev'. */
 const BUILD = import.meta.env.VITE_BUILD ?? 'dev';
 const LOCATION = 'lagoon';
@@ -134,9 +134,27 @@ async function boot(): Promise<void> {
     void control.rewarded(() => platform.showRewarded()).then((ok) => game.adDone(ok));
   });
   const hint = new WalkHint(ui, game, text);
-  const cleared = new ClearedWindow(ui, game, text, DATA.location(LOCATION).nameKey, () => {
-    if (game.playOn()) saver.save();
-  });
+  let doubling = false;
+  const cleared = new ClearedWindow(
+    ui,
+    game,
+    text,
+    DATA.location(LOCATION).nameKey,
+    () => {
+      if (game.playOn()) saver.save();
+    },
+    () => {
+      // «Сундук ×2» (M1-17): окно стоит, сигналов площадке нет (Control.rewarded); досмотрел — запись сразу.
+      if (doubling) return;
+      doubling = true;
+      void control
+        .rewarded(() => platform.showRewarded())
+        .then((ok) => {
+          if (ok && game.doubleChest()) saver.save();
+        })
+        .finally(() => (doubling = false));
+    },
+  );
   const plaque = resumed
     ? new ResumePlaque(
         ui,
@@ -262,6 +280,7 @@ async function boot(): Promise<void> {
         targetGx: b.targetGx, targetGy: b.targetGy, leftMs: b.leftMs, level: b.level, chestXp: b.chestXp,
       }))(game.finalBoss),
       cleared: game.cleared,
+      chestDoubled: game.chestDoubled,
       levelCap: Number.isFinite(progression.maxLevel) ? progression.maxLevel : null,
     }),
     command: {

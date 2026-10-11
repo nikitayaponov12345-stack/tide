@@ -123,6 +123,8 @@ export interface GameDebug {
     };
     /** Открыто окно «Локация пройдена». */
     cleared: boolean;
+    /** «Сундук ×2» за рекламу уже взят (M1-17). */
+    chestDoubled: boolean;
     /** Выше этого уровень не растёт; без предела — null. */
     levelCap: number | null;
   };

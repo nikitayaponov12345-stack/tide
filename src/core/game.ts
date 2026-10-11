@@ -8,6 +8,7 @@ import { Enemies } from './enemies';
 import { LocationEvents } from './events';
 import { FinalBoss } from './final-boss';
 import { BUILDINGS_IN_GAME, buildSpots, canPlace, collectLevelUps, debugLevelUp, openNext, placeCell, takeCard, unlockWhirlpool } from './game-cards';
+import { adDone, doubleChest, takeBoostOffer } from './game-rewards';
 import { restoreGame, snapshotGame, type GameSnapshot } from './game-snapshot';
 import { enemiesContext, finalHit, levelCap, playOn, stepThreats } from './game-threats';
 import { Net, type CaughtItem } from './net';
@@ -66,6 +67,8 @@ export class Game {
   ad = false;
   /** Открыто окно «Локация пройдена» (M1-15): мир стоит. Входит в снимок: после загрузки окно на месте. */
   cleared = false;
+  /** «Сундук ×2» за рекламу уже взят (M1-17). Входит в снимок. */
+  chestDoubled = false;
   /** У площадки есть реклама за награду. */
   readonly rewarded: boolean;
   /** Воронка открыта на всю кампанию (M1-14). В снимок не входит: это запись кампании. */
@@ -208,25 +211,22 @@ export class Game {
 
   /** Нажатие на кнопку буста за рекламу: она гаснет, мир стоит до adDone. Пауза или кнопки нет → false. */
   takeBoostOffer(): boolean {
-    if (this.paused || !this.boostOffer.take()) return false;
-    this.ad = true;
-    return true;
+    return takeBoostOffer(this);
   }
 
   /** Реклама кончилась; досмотрена (rewarded) — буст на boost_ad_s, враги на поле гибнут без добычи. Рекламы нет → false. */
   adDone(rewarded: boolean): boolean {
-    if (!this.ad) return false;
-    this.ad = false;
-    if (rewarded) {
-      this.boost.start(this.boostOffer.adBoostMs);
-      this.stats.boostKills += this.enemies.killAll();
-    }
-    return true;
+    return adDone(this, rewarded);
   }
 
   /** «Играть дальше» в окне «Локация пройдена»: окно закрывается, уровни идут дальше. Окна нет → false. */
   playOn(): boolean {
     return playOn(this);
+  }
+
+  /** «Сундук ×2» за рекламу в окне «Локация пройдена» (M1-17): опыт большого сундука ещё раз. Окна, рекламы нет или уже взят → false. */
+  doubleChest(): boolean {
+    return doubleChest(this);
   }
 
   /** Выбранное оружие можно бросить: не пауза и оно у моряка. */

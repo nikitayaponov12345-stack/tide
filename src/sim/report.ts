@@ -113,7 +113,7 @@ function fightSection(curve: readonly SimResult[]): string[] {
     '## Финальный бой',
     '',
     `Прошли локацию: ${won.length} из ${curve.length}. Бой: медиана ${fights.length > 0 ? s0(median(fights)) : '—'}${range}, ` +
-      `в цели ${num(lo / 1000, 0)}–${s0(hi)} — ${inTarget}. От ${MARK_LEVELS[MARK_LEVELS.length - 1]}-го уровня до начала боя: медиана ` +
+      `в цели ${num(lo / 1000, 0)}–${s0(hi)} — ${inTarget}. От ${curve[0]?.fightLevel ?? '—'}-го уровня до начала боя: медиана ` +
       `${waits.length > 0 ? s0(median(waits)) : '—'}, худшая ${waits.length > 0 ? s0(Math.max(...waits)) : '—'}. ` +
       `«Локация пройдена»: медиана ${clearedGame.length > 0 ? min(median(clearedGame)) : '—'} игрового времени ` +
       `(${clearedWall.length > 0 ? min(median(clearedWall)) : '—'} по часам).`,
@@ -131,8 +131,8 @@ function fightSection(curve: readonly SimResult[]): string[] {
   return out;
 }
 
-/** От последнего отмеченного уровня (level_to_clear) до начала боя, игровое время; нет одного из двух — null. */
+/** От уровня боя (finalBoss.level, M1-17) до начала боя, игровое время; нет одного из двух — null. */
 function fightWait(r: SimResult): number | null {
-  const at = r.levelGameMs[MARK_LEVELS[MARK_LEVELS.length - 1]!] ?? null;
+  const at = r.fightLevelGameMs;
   return at === null || r.fightStartGameMs === null ? null : Math.max(0, r.fightStartGameMs - at);
 }

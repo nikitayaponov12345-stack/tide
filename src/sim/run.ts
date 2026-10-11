@@ -49,6 +49,9 @@ export interface SimResult {
   offersTaken: number;
   /** Финальный бой (с M1-15): игровое время начала шага, в котором он начался (не начался — null). */
   fightStartGameMs: number | null;
+  /** Уровень боя (finalBoss.level) и игровое время, когда партия до него дошла (не дошла — null; с M1-17). */
+  fightLevel: number;
+  fightLevelGameMs: number | null;
   /** Игровое время боя (stats.finalFightMs) при победе, иначе null. */
   fightMs: number | null;
   /** Когда финальный босс побеждён: игровое время и по часам; не побеждён — null. */
@@ -80,6 +83,7 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
   let adPoints = 0;
   let lastAdMs: number | null = null;
   let fightStartGameMs: number | null = null;
+  let fightLevelGameMs: number | null = null;
   let clearedGameMs: number | null = null;
   let clearedWallMs: number | null = null;
   const untilCleared = opts.untilLevel === 'cleared';
@@ -115,6 +119,7 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     game.step(STEP_MS);
     wallMs += STEP_MS;
     if (fightStartGameMs === null && game.finalBoss.phase !== 'none') fightStartGameMs = stepStartMs;
+    if (fightLevelGameMs === null && game.progression.level >= game.finalBoss.level) fightLevelGameMs = game.stats.gameMs;
     if (clearedGameMs === null && game.finalBoss.defeated) {
       clearedGameMs = game.stats.gameMs;
       clearedWallMs = wallMs;
@@ -158,6 +163,8 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     offers: game.boostOffer.shown,
     offersTaken: game.boostOffer.taken,
     fightStartGameMs,
+    fightLevel: game.finalBoss.level,
+    fightLevelGameMs,
     fightMs: game.finalBoss.defeated ? s.finalFightMs : null,
     clearedGameMs,
     clearedWallMs,
