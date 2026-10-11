@@ -32,6 +32,9 @@ export interface SimResult {
   spearHits: number;
   enemiesKilled: number;
   enemiesEscaped: number;
+  /** Ремонтов (открытий) и нажатий в ремонте (с M1-21). */
+  repairs: number;
+  repairTaps: number;
   /** Вожаков событий пришло и побеждено копьями (с M1-16). */
   leaders: number;
   leadersKilled: number;
@@ -81,6 +84,7 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
   let wallMs = 0;
   let windows = 0;
   let adPoints = 0;
+  let repairs = 0;
   let lastAdMs: number | null = null;
   let fightStartGameMs: number | null = null;
   let fightLevelGameMs: number | null = null;
@@ -97,6 +101,7 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     if (untilCleared && game.finalBoss.defeated) break;
     if (game.paused) {
       const isWindow = game.window !== null;
+      if (game.repair) repairs++;
       const { ms, card, rewarded } = bot.pause();
       wallMs += ms;
       // Реклама за награду (буст, с M1-14 и воронка) тоже считается в перерыв межстраничной (ads.csv, window_close).
@@ -147,6 +152,8 @@ export function runSim(data: Tables, seed: number, opts: SimOptions = DEFAULT_SI
     spearHits: s.spearHits,
     enemiesKilled: s.enemiesKilled,
     enemiesEscaped: s.enemiesEscaped,
+    repairs,
+    repairTaps: s.repairTaps,
     leaders: s.leaders,
     leadersKilled: s.leadersKilled,
     lootDropped: s.lootDropped,

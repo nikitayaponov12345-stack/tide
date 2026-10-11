@@ -6,6 +6,12 @@ export const GATE_L2_MS = 10_000;
 /** Цель длительности финального боя: GDD, «Боссы» — бой 35–60 с. */
 export const FIGHT_TARGET_MS = [35_000, 60_000] as const;
 
+/**
+ * Ворота M1 (ROADMAP, GDD «План», M1): первые runs прогонов кривой проходят Лагуну («Локация пройдена»), медиана по
+ * часам — в wallMs, тупиков нет. Тупик — прогон, не дошедший до победы в финальном бою за maxGameMs игры.
+ */
+export const GATE_M1 = { runs: 10, wallMs: [20 * 60_000, 25 * 60_000] } as const;
+
 export interface GateResult { games: number; medianMs: number; p90Ms: number; maxMs: number; over: number; passed: boolean }
 
 function sorted(xs: readonly number[]): number[] {
@@ -63,6 +69,7 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
   out.push(
     `**Ворота M0** (2-й уровень, медиана не больше ${sec(GATE_L2_MS)}): ${g.passed ? 'пройдены' : 'НЕ пройдены'}. ` +
       `${g.games} игр: медиана ${sec(g.medianMs)}, 90 % быстрее ${sec(g.p90Ms)}, худшая ${sec(g.maxMs)}, дольше ${sec(GATE_L2_MS)} — ${g.over}.`,
+    ...gateM1(curve).lines,
     '',
     `## Кривая: ${curve.length} игр`,
     '',
@@ -80,8 +87,8 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
     '',
     '## Прогоны',
     '',
-    '| Сид | 2 | 10 | 20 | 40 | Уровень в конце | Предметов на бросок | Опыт: поток / добыча / сундуки / буст | Реклама за 10 мин | Буст за рекламу: показан / взят | Доля игрового времени | Клеток | Крабы: убито / ушло | Вожаки: пришло / побеждено |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Сид | 2 | 10 | 20 | 40 | Уровень в конце | Предметов на бросок | Опыт: поток / добыча / сундуки / буст | Реклама за 10 мин | Буст за рекламу: показан / взят | Доля игрового времени | Клеток | Крабы: убито / ушло | Вожаки: пришло / побеждено | Ремонт: раз / нажатий |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   );
   for (const r of curve) {
     const times = MARK_LEVELS.map((l) => levelTime(l, r.levelGameMs[l] ?? null));
@@ -90,11 +97,28 @@ export function toMarkdown(g: GateResult, curve: readonly SimResult[]): string {
     const perThrow = r.throws > 0 ? num(r.itemsCaught / r.throws, 2) : '—';
     const ads = r.wallMs > 0 ? num((r.adPoints * 600_000) / r.wallMs, 1) : '—';
     out.push(
-      `| ${r.seed} | ${times.join(' | ')} | ${r.level} | ${perThrow} | ${shares} | ${ads} | ${r.offers} / ${r.offersTaken} | ${pct(r.gameMs, r.wallMs)} | ${r.cells} | ${r.enemiesKilled} / ${r.enemiesEscaped} | ${r.leaders} / ${r.leadersKilled} |`,
+      `| ${r.seed} | ${times.join(' | ')} | ${r.level} | ${perThrow} | ${shares} | ${ads} | ${r.offers} / ${r.offersTaken} | ${pct(r.gameMs, r.wallMs)} | ${r.cells} | ${r.enemiesKilled} / ${r.enemiesEscaped} | ${r.leaders} / ${r.leadersKilled} | ${r.repairs} / ${r.repairTaps} |`,
     );
   }
   out.push('', 'Время уровней в строках прогонов — игровое; по часам — в таблице кривой.', '');
   return out.join('\n');
+}
+
+/** Ворота M1 по первым GATE_M1.runs прогонам кривой (M1-21): пройдены ли и строка отчёта. */
+export function gateM1(curve: readonly SimResult[]): { passed: boolean; lines: string[] } {
+  const runs = curve.slice(0, GATE_M1.runs);
+  const wall = runs.map((r) => r.clearedWallMs).filter((x): x is number => x !== null);
+  const stuck = runs.length - wall.length;
+  const [lo, hi] = GATE_M1.wallMs;
+  const med = wall.length > 0 ? median(wall) : NaN;
+  const passed = runs.length === GATE_M1.runs && stuck === 0 && med + 1e-9 >= lo && med <= hi + 1e-9;
+  const range = wall.length > 0 ? ` (${min(Math.min(...wall))} – ${min(Math.max(...wall))})` : '';
+  const lines = [
+    '',
+    `**Ворота M1** (Лагуна целиком: ${GATE_M1.runs} прогонов, медиана «Локация пройдена» по часам ${num(lo / 60_000, 0)}–${num(hi / 60_000, 0)} мин, ` +
+      `тупиков нет): ${passed ? 'пройдены' : 'НЕ пройдены'}. Прошли ${wall.length} из ${runs.length}, медиана ${wall.length > 0 ? min(med) : '—'}${range}, тупиков — ${stuck}.`,
+  ];
+  return { passed, lines };
 }
 
 /** Раздел «Финальный бой»: итоги и строка на прогон. */

@@ -28,6 +28,9 @@ export interface BotParams {
   boostTakeShare: number; // доля предложений буста за рекламу, которые бот берёт
   offerNoticeMs: Span;  // заметить кнопку буста и нажать
   adMs: Span;           // реклама за награду, по часам
+  repairBelowHp: number; // клетка с прочностью не выше этой — бот идёт чинить (M1-21)
+  repairNoticeMs: Span; // заметить такую клетку и нажать молоток
+  repairTapMs: Span;    // одно нажатие по клетке в ремонте, по часам
 }
 
 /** Бот «человек»: GDD «Темп и баланс», TESTPLAN §5. */
@@ -46,6 +49,11 @@ export const HUMAN: BotParams = {
   boostTakeShare: 3 / 7,
   offerNoticeMs: [500, 1000],
   adMs: [12500, 13500],
+  // Ремонт (M1-21): живой игрок чинит, когда клетка заметно разбита — половина прочности; молоток замечает, как краба;
+  // нажатие по клетке — как по карточке, без раздумий. Число — толкование Claude: записи ремонта короткие (13 с за 828 с).
+  repairBelowHp: 50,
+  repairNoticeMs: [500, 1000],
+  repairTapMs: [300, 500],
 };
 
 /** Порядок карточек в окне: «Плот» и постройки первыми, как у живого игрока на записях. */
@@ -75,6 +83,7 @@ export class HumanBot {
   private pullDelay = 0;
   private crabAt: number | null = null;
   private walkAt: number | null = null;
+  private repairAt: number | null = null;
   /** Последнее замеченное предложение буста (boostOffer.shown) и когда его нажать; null — не нажимать. */
   private offerSeen = 0;
   private offerAt: number | null = null;
@@ -125,6 +134,17 @@ export class HumanBot {
       return;
     }
 
+    // Клетка разбита наполовину и сильнее — через время реакции молоток (M1-21); ремонт — пауза, нажатия — в pause().
+    if (!g.raft.cells.some((c) => c.hp <= p.repairBelowHp)) {
+      this.repairAt = null;
+    } else if (this.repairAt === null) {
+      this.repairAt = now + this.span(p.repairNoticeMs);
+    } else if (now + TIME_EPS >= this.repairAt) {
+      this.repairAt = null;
+      this.release();
+      if (g.setRepair(true)) return;
+    }
+
     // Копьё шхуну или финального босса не достаёт — через время реакции шаг к ним.
     if (crab === null && g.spearOwned && (g.boss.visiting || g.finalBoss.present)) {
       if (this.walkAt === null) this.walkAt = now + this.span(p.reactionMs);
@@ -157,7 +177,7 @@ export class HumanBot {
     }
   }
 
-  /** Окно, стройка, реклама за награду или «Локация пройдена»: решение и сколько оно заняло по часам. */
+  /** Окно, стройка, ремонт (M1-21), реклама за награду или «Локация пройдена»: решение и сколько оно заняло по часам. */
   pause(): PauseResult {
     const g = this.game;
     this.release();
@@ -169,6 +189,20 @@ export class HumanBot {
     this.throwAt = null;
     this.pullAt = null;
     this.walkAt = null;
+    if (g.repair) {
+      // Нажатия по самой разбитой клетке, пока прочность у всех полная: тогда ремонт закрывается сам.
+      let ms = 0;
+      while (g.repair) {
+        let worst = g.raft.cells[0]!;
+        for (const c of g.raft.cells) if (c.hp < worst.hp) worst = c;
+        if (!g.repairCell(worst.gx, worst.gy)) {
+          g.setRepair(false);
+          break;
+        }
+        ms += this.span(this.params.repairTapMs);
+      }
+      return { ms, card: null };
+    }
     if (g.cleared) {
       const ms = this.span(this.params.windowMs);
       g.playOn();
